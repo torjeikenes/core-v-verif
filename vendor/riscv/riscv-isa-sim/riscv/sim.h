@@ -161,7 +161,7 @@ public:
   // Initialize this after procs, because in debug_module_t::reset() we
   // enumerate processors, which segfaults if procs hasn't been initialized
   // yet.
-  debug_module_t debug_module;
+  //debug_module_t debug_module;
 };
 
 extern volatile bool ctrlc_pressed;

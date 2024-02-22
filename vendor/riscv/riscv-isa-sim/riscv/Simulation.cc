@@ -58,8 +58,8 @@ Simulation::Simulation(
   this->params.set("/top/", "bootrom_size", std::any(0x1000UL));
 
   this->params.set("/top/", "dram", std::any(true));
-  this->params.set("/top/", "dram_base", std::any(0x80000000UL));
-  this->params.set("/top/", "dram_size", std::any(0x40000000UL));
+  this->params.set("/top/", "dram_base", std::any(0x00000000UL));
+  this->params.set("/top/", "dram_size", std::any(0x400000UL));
 
   this->params.set("/top/", "log_commits", std::any(true));
 
@@ -101,7 +101,7 @@ Simulation::Simulation(const cfg_t *cfg, string elf_path,
                  plugin_devs, std::vector<std::string>() = {elf_path},
                  dm_config,
                  "tandem.log", // log_path
-                 true,         // dtb_enabled
+                 false,        // dtb_enabled
                  nullptr,      // dtb_file
                  false,        // socket_enabled
                  NULL,         // cmd_file
@@ -127,6 +127,9 @@ void Simulation::make_mems(const std::vector<mem_cfg_t> &layout) {
   for (const auto &cfg : layout)
     mems.push_back(std::make_pair(cfg.get_base(), new mem_t(cfg.get_size())));
 
+  
+
+/*
   bool bootrom = std::any_cast<bool>(this->params["/top/bootrom"]);
   uint64_t bootrom_base =
       std::any_cast<uint64_t>(this->params["/top/bootrom_base"]);
@@ -154,12 +157,23 @@ void Simulation::make_mems(const std::vector<mem_cfg_t> &layout) {
 
     this->mems.push_back(bootrom_device);
   }
-
+*/
   bool dram = std::any_cast<bool>(this->params["/top/dram"]);
   uint64_t dram_base = std::any_cast<uint64_t>(this->params["/top/dram_base"]);
   uint64_t dram_size = std::any_cast<uint64_t>(this->params["/top/dram_size"]);
   if (dram)
     this->mems.push_back(std::make_pair(dram_base, new mem_t(dram_size)));
+
+  //dbg
+  this->mems.push_back(std::make_pair(0x1a110800, new mem_t(0x1000)));
+
+  //stdout?
+  this->mems.push_back(std::make_pair(0x10000000, new mem_t(0x1000)));
+  //mmram?
+  this->mems.push_back(std::make_pair(0x20000000, new mem_t(0x1000)));
+
+  //CV_VP_REGISTER used in _write()
+  this->mems.push_back(std::make_pair(0x00800000, new mem_t(0x10000)));
 }
 
 std::vector<st_rvfi> Simulation::step(size_t n,

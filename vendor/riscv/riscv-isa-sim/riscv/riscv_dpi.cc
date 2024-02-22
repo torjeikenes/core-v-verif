@@ -42,8 +42,8 @@ extern "C" void spike_set_default_params(const char* profile)
     {
         params.set("/top/", "isa", std::any(std::string("RV64GC")));
         params.set("/top/", "bootrom", std::any(true));
-        params.set("/top/", "dram_base", std::any(0x80000000UL));
-        params.set("/top/", "dram_size", std::any(0x64UL * 1024 * 1024));
+        params.set("/top/", "dram_base", std::any(0x00000000UL));
+        params.set("/top/", "dram_size", std::any(0x400000UL ));
         params.set("/top/", "max_steps_enabled", std::any(false));
         params.set("/top/", "max_steps", std::any(2000000UL));
 

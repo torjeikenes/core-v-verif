@@ -57,8 +57,8 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
     debug(false),
     histogram_enabled(false),
     log(false),
-    remote_bitbang(NULL),
-    debug_module(this, dm_config)
+    remote_bitbang(NULL)//,
+    //debug_module(this, dm_config)
 {
   signal(SIGINT, &handle_signal);
 
@@ -70,7 +70,7 @@ sim_t::sim_t(const cfg_t *cfg, bool halted,
   for (auto& x : plugin_devices)
     bus.add_device(x.first, x.second);
 
-  debug_module.add_device(&bus);
+  //debug_module.add_device(&bus);
 
   socketif = NULL;
 #ifdef HAVE_BOOST_ASIO
@@ -441,5 +441,5 @@ endianness_t sim_t::get_target_endianness() const
 
 void sim_t::proc_reset(unsigned id)
 {
-  debug_module.proc_reset(id);
+  //debug_module.proc_reset(id);
 }
