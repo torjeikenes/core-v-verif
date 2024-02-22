@@ -19,8 +19,9 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
 
   this->taken_trap = false;
 
-  rvfi.pc_rdata = this->get_state()->pc;
+  rvfi.pc_rdata = this->get_state()->pc; // Current PC
   processor_t::step(n);
+  rvfi.pc_wdata = this->get_state()->pc; // Next predicted PC
 
   rvfi.mode = this->get_state()->last_inst_priv;
   rvfi.insn =
@@ -28,6 +29,8 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
 
   // TODO FIXME Handle multiple/zero writes in a single insn.
   auto &reg_commits = this->get_state()->log_reg_write;
+  auto &mem_write_commits = this->get_state()->log_mem_write;
+  auto &mem_read_commits = this->get_state()->log_mem_read;
   int xlen = this->get_state()->last_inst_xlen;
   int flen = this->get_state()->last_inst_flen;
 
@@ -53,6 +56,37 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
       got_commit = true; // FORNOW Latch only the first commit.
     }
   }
+
+  //TODO FIXME handle multiple memory accesses in a single insn
+  bool mem_access = false;
+
+  int read_len;
+  for (auto &mem : mem_read_commits) {
+    //mem format: (addr, 0, size) (value is not stored for reads, but should be the same as rd)
+    if(!mem_access) {
+      rvfi.mem_addr = std::get<0>(mem);
+      rvfi.mem_rdata = rvfi.rd1_wdata; 
+      //mem_rmask should hold a bitmask of which bytes in mem_rdata contain valid data
+      read_len = std::get<2>(mem);
+      rvfi.mem_rmask = (1 << read_len) - 1;
+      mem_access = true;
+    }
+  }
+
+  int write_len;
+  for (auto &mem : mem_write_commits) {
+    //mem format: (addr, value, size)
+    if(!mem_access) {
+      rvfi.mem_addr = std::get<0>(mem);
+      rvfi.mem_wdata = ::get<1>(mem); // value
+      //mem_wmask should hold a bitmask of which bytes in mem_wdata contain valid data
+      write_len = std::get<2>(mem);
+      rvfi.mem_wmask = (1 << write_len) - 1;
+      mem_access = true;
+    }
+
+  }
+
 
   // Inject values comming from the reference
   if ((rvfi.insn & MASK_CSRRS) == MATCH_CSRRS) {
@@ -96,7 +130,7 @@ Processor::Processor(
   this->params.set("/top/core/0/", "pmpregions", any(0x0UL));
   this->params.set("/top/core/0/", "pmpaddr0", any(0x0UL));
   this->params.set("/top/core/0/", "pmpcfg0", any(0x0UL));
-  this->params.set("/top/core/0/", "marchid", any(0x3UL));
+  this->params.set("/top/core/0/", "marchid", any(0x15UL));
   this->params.set("/top/core/0/", "mvendorid", any(0x00000602UL));
   this->params.set("/top/core/0/", "status_fs_field_we_enable", any(false));
   this->params.set("/top/core/0/", "status_fs_field_we", any(false));
