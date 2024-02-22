@@ -198,7 +198,7 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
 
   prv = PRV_M;
   v = false;
-  csrmap[CSR_MISA] = misa = std::make_shared<misa_csr_t>(proc, CSR_MISA, max_isa);
+  csrmap[CSR_MISA] = misa = std::make_shared<misa_csr_t>(proc, CSR_MISA, 0x40901104);
   mstatus = std::make_shared<mstatus_csr_t>(proc, CSR_MSTATUS);
 
   if (xlen == 32) {
@@ -428,9 +428,9 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
 
   csrmap[CSR_SEED] = std::make_shared<seed_csr_t>(proc, CSR_SEED);
 
-  csrmap[CSR_MARCHID] = std::make_shared<const_csr_t>(proc, CSR_MARCHID, 5);
+  csrmap[CSR_MARCHID] = std::make_shared<const_csr_t>(proc, CSR_MARCHID, 0x15);
   csrmap[CSR_MIMPID] = std::make_shared<const_csr_t>(proc, CSR_MIMPID, 0);
-  csrmap[CSR_MVENDORID] = std::make_shared<const_csr_t>(proc, CSR_MVENDORID, 0);
+  csrmap[CSR_MVENDORID] = std::make_shared<const_csr_t>(proc, CSR_MVENDORID, 0x00000602);
   csrmap[CSR_MHARTID] = std::make_shared<const_csr_t>(proc, CSR_MHARTID, proc->get_id());
   csrmap[CSR_MCONFIGPTR] = std::make_shared<const_csr_t>(proc, CSR_MCONFIGPTR, 0);
   if (proc->extension_enabled_const('U')) {

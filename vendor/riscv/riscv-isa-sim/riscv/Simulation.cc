@@ -50,7 +50,7 @@ Simulation::Simulation(
   // FIXME TODO: Support multiple cores.
   get_core(0)->get_mmu()->set_cache_blocksz(reg_t(64));
 
-  this->params.set("/top/", "isa", any(std::string("RV32GC")));
+  this->params.set("/top/", "isa", any(std::string("RV32IMC")));
   this->params.set("/top/", "priv", any(std::string(DEFAULT_PRIV)));
 
   this->params.set("/top/", "bootrom", std::any(true));
