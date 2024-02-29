@@ -39,12 +39,31 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
   rvfi.rs2_addr = this->get_state()->last_inst_fetched.rs2();
   // TODO add rs2_value
 
-  rvfi.trap = this->taken_trap;
+  //trap            [0]   exception or debug entry
+  //exception       [1]   Synchronous traps that do not cause debug entry 
+  //debug           [2]   Synchronous traps that cause debug entry  
+  //exception_cause [8:3] exception cause
+  //debug_cause     [11:9] debug cause
+  //cause_type      [13:12]
+  //clicptr         [14]  CLIC interrupt pending
+ // rvfi.trap = this->taken_trap;
+  
+  if(this->taken_trap) {
+    rvfi.trap |= 1 << 0;
+    rvfi.trap |= 1 << 1;
+
+    rvfi.trap |= 0x1F8 & (this->which_trap << 3);
+  }
+
   rvfi.cause = this->which_trap;
 
   bool got_commit = false;
   for (auto &reg : reg_commits) {
-
+    // popret should return rd1_addr = 0 to match with the core
+    if ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRET) == MATCH_CM_POPRET) {
+      got_commit = true;
+      continue;
+    }
     if (!got_commit) {
       rvfi.rd1_addr = reg.first >> 4;
       if (rvfi.rd1_addr > 32)
