@@ -992,13 +992,15 @@ bool wide_counter_csr_t::unlogged_write(const reg_t val) noexcept {
   // takes precedence over the increment to instret.  However, Spike
   // unconditionally increments instret after executing an instruction.
   // Correct for this artifact by decrementing instret here.
-   openhw::reg::unlogged_write( openhw::reg::unlogged_read()-1);
+
+  // disable since we (at the moment) check mcounterinhibit
+  //openhw::reg::unlogged_write( openhw::reg::unlogged_read()-1);
   return true;
 }
 
 reg_t wide_counter_csr_t::written_value() const noexcept {
   // Re-adjust for upcoming bump()
-  return  openhw::reg::unlogged_read() + 1;
+  return  openhw::reg::unlogged_read(); //+ 1; // Disable since we dont always bump
 }
 
 // implement class time_counter_csr_t

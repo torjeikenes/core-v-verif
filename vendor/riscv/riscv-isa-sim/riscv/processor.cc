@@ -267,7 +267,7 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
       csrmap[which_mevent] = mevent[i - 3];
     }
   }
-  csrmap[CSR_MCOUNTINHIBIT] = std::make_shared<const_csr_t>(proc, CSR_MCOUNTINHIBIT, 0);
+  csrmap[CSR_MCOUNTINHIBIT] = std::make_shared<const_csr_t>(proc, CSR_MCOUNTINHIBIT, 0x00000005);
   if (proc->extension_enabled_const(EXT_SSCOFPMF))
     csrmap[CSR_SCOUNTOVF] = std::make_shared<scountovf_csr_t>(proc, CSR_SCOUNTOVF);
   csrmap[CSR_MIE] = mie = std::make_shared<mie_csr_t>(proc, CSR_MIE);
