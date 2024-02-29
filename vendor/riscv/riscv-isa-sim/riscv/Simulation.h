@@ -57,6 +57,8 @@ public:
    * */
   std::vector<st_rvfi> step(size_t n, std::vector<st_rvfi> &vreference);
 
+  void set_mip(reg_t mask);
+
   /*
    * Proposed constuctor for the Simulation class
    * *

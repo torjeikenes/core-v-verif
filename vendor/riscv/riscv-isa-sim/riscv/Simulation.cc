@@ -15,6 +15,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#define ENABLED_IRQ_MASK 0xFFFF0888 //Enable IRQ 3, 7, 11, and 16-31 (From CV32E40S documentation)
+
 using namespace openhw;
 
 std::vector<std::pair<reg_t, abstract_device_t *>> plugin_devs;
@@ -202,6 +204,39 @@ std::vector<st_rvfi> Simulation::step(size_t n,
     }
   }
   return vspike;
+}
+
+void Simulation::set_mip(reg_t mip) {
+  state_t *state = procs[0]->get_state();
+
+  uint32_t old_mip = state->mip->read();
+  uint32_t mie = state->mie->read();
+  uint32_t mstatus = state->mstatus->read();
+
+  state->mip->write_with_mask(ENABLED_IRQ_MASK, mip);
+  fprintf(procs[0]->get_log_file(), "mip %lx set to %lx\n", mip, mip & ENABLED_IRQ_MASK);
+
+  //Don't continue if the the interrupt is disabled, or if we are in debug mode
+  if( !get_field(mstatus, MSTATUS_MIE) ||
+      state->debug_mode  ||
+      (procs[0]->halt_request == processor_t::HR_REGULAR)) 
+  {
+    return;
+  }
+
+
+  uint32_t old_en_irq = old_mip & mie;
+  uint32_t new_en_irq = mip & mie;
+
+  st_rvfi vref; //Passed to step, but not used
+
+  //only step if the mip is new
+  if((old_en_irq == 0 ) && (new_en_irq != 0)) {
+    //This step only sets the correct state for the interrupt, but does not actually execute an instruction
+    //Another step needs to be taken to actually step through the instruction
+    ((Processor *)procs[0])->step(1, vref);
+  }
+  
 }
 
 #if 0 // FORNOW Unused code, disable until needed.
