@@ -225,6 +225,9 @@ Processor::Processor(
                                 : (sstatus_mask & ~MSTATUS_VS));
   this->state.mstatus->set_param_write_mask(sstatus_mask);
 
+
+  this->put_csr(CSR_MSTATUS, MSTATUS_MPP);
+
   bool misa_we_enable =
       std::any_cast<bool>(this->params["/top/core/0/misa_we_enable"]);
   bool misa_we = std::any_cast<bool>(this->params["/top/core/0/misa_we"]);

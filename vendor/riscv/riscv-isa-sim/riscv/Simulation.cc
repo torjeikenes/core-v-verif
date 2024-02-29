@@ -88,6 +88,9 @@ Simulation::Simulation(
   this->max_steps_enabled =
       std::any_cast<bool>(this->params["/top/max_steps_enabled"]);
 
+  printf("U extension enabled = %d\n", procs[0]->extension_enabled('U'));
+  printf("S extension enabled = %d\n", procs[0]->extension_enabled('S'));
+
   target.init(sim_thread_main, this);
   host = context_t::current();
   target.switch_to(); // To get the first point
