@@ -18,7 +18,8 @@ public:
 
 protected:
   bool taken_trap;
-  uint8_t which_trap;
+  uint32_t which_trap;
+  reg_t next_rvfi_intr;
   virtual void take_trap(trap_t &t, reg_t epc); // take an exception
 };
 

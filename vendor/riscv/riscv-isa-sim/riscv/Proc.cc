@@ -39,20 +39,28 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
   rvfi.rs2_addr = this->get_state()->last_inst_fetched.rs2();
   // TODO add rs2_value
 
-  //trap            [0]   exception or debug entry
-  //exception       [1]   Synchronous traps that do not cause debug entry 
-  //debug           [2]   Synchronous traps that cause debug entry  
-  //exception_cause [8:3] exception cause
-  //debug_cause     [11:9] debug cause
-  //cause_type      [13:12]
-  //clicptr         [14]  CLIC interrupt pending
- // rvfi.trap = this->taken_trap;
+ if(this->next_rvfi_intr){
+    rvfi.intr = next_rvfi_intr;
+    this->next_rvfi_intr = 0;
+  }
   
   if(this->taken_trap) {
-    rvfi.trap |= 1 << 0;
-    rvfi.trap |= 1 << 1;
-
-    rvfi.trap |= 0x1F8 & (this->which_trap << 3);
+    //interrrupts are marked with the msb high in which_trap
+    if(this->which_trap & ((reg_t)1 << (isa->get_max_xlen() - 1))) { 
+      //Since spike steps two times to take an interrupt, we store the intr value to the next step to return with rvfi
+      this->next_rvfi_intr |= 1 << 0; //intr [0]
+      this->next_rvfi_intr |= 1 << 2; //interrupt [2]
+      this->next_rvfi_intr |= 0x3FF8 & ((this->which_trap & 0xFF) << 3); //cause[13:3]
+    } else{
+      rvfi.trap |= 1 << 0; //intr [0]
+      rvfi.trap |= 1 << 1; //exception [1]
+      rvfi.trap |= 0x1F8 & ((this->which_trap) << 3); //exception_cause [8:3]
+      //TODO:
+      //debug_cause     [11:9] debug cause
+      //cause_type      [13:12]
+      //clicptr         [14]  CLIC interrupt pending
+      this->next_rvfi_intr = rvfi.trap; //store value to return with rvfi.intr on the next step
+    }
   }
 
   rvfi.cause = this->which_trap;
@@ -252,6 +260,8 @@ Processor::Processor(
   bool misa_we = std::any_cast<bool>(this->params["/top/core/0/misa_we"]);
   if (misa_we_enable)
     this->state.misa->set_we(misa_we);
+
+  this->next_rvfi_intr = 0;
 }
 
 void Processor::take_trap(trap_t &t, reg_t epc) {
