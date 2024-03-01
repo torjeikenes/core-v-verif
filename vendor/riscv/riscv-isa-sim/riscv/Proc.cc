@@ -43,7 +43,7 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
     rvfi.intr = next_rvfi_intr;
     this->next_rvfi_intr = 0;
   }
-  
+
   if(this->taken_trap) {
     //interrrupts are marked with the msb high in which_trap
     if(this->which_trap & ((reg_t)1 << (isa->get_max_xlen() - 1))) { 
@@ -67,8 +67,9 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
 
   bool got_commit = false;
   for (auto &reg : reg_commits) {
-    // popret should return rd1_addr = 0 to match with the core
-    if ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRET) == MATCH_CM_POPRET) {
+    // popret(z) should return rd1_addr = 0 to match with the core
+    if (((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRET) == MATCH_CM_POPRET) ||
+        ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRETZ) == MATCH_CM_POPRETZ)) {
       got_commit = true;
       continue;
     }
