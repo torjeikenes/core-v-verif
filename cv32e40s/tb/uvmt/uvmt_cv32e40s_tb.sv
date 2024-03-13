@@ -793,6 +793,7 @@ module uvmt_cv32e40s_tb;
 
 
   // Core integration assertions
+  `ifndef  COREV_ASSERT_OFF
 
   bind cv32e40s_wrapper
     uvmt_cv32e40s_integration_assert  integration_assert_i (
@@ -802,7 +803,6 @@ module uvmt_cv32e40s_tb;
     );
 
 
-  `ifndef  COREV_ASSERT_OFF
     bind cv32e40s_wrapper
       uvmt_cv32e40s_xsecure_data_independent_timing_assert #(
         .SECURE  (SECURE)
@@ -1701,6 +1701,7 @@ module uvmt_cv32e40s_tb;
 
   // Support Logic
 
+  `ifndef  COREV_ASSERT_OFF
   bind cv32e40s_wrapper uvmt_cv32e40s_support_logic u_support_logic(.rvfi (rvfi_instr_if),
                                                                     .in_support_if (support_logic_module_i_if.driver_mp),
                                                                     .out_support_if (support_logic_module_o_if.master_mp),
@@ -1709,7 +1710,6 @@ module uvmt_cv32e40s_tb;
                                                                     );
 
 
-  `ifndef  COREV_ASSERT_OFF
     bind cv32e40s_wrapper uvmt_cv32e40s_debug_assert u_debug_assert(.rvfi(rvfi_instr_if),
                                                                     .csr_dcsr(rvfi_csr_dcsr_if),
                                                                     .csr_dpc(rvfi_csr_dpc_if),

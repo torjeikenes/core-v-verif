@@ -12,6 +12,7 @@ module pipeline_shell
     );
 
     st_rvfi rvfi_iss;
+    st_rvfi rvfi_core;
 
     initial begin
         $display("Pipeline Shell: Starting");
@@ -28,11 +29,41 @@ module pipeline_shell
         end
 
         if(rvfi_i.rvfi_valid) begin
-            iss_step(rvfi_iss);
+            //TEMP: insert rvfi from core into dummy iss, to return the same rvfi back
+            rvfi_core.order = rvfi_i.rvfi_order;
+            rvfi_core.insn = rvfi_i.rvfi_insn;
+            rvfi_core.trap = rvfi_i.rvfi_trap;
+            rvfi_core.halt = rvfi_i.rvfi_halt;
+            rvfi_core.dbg = rvfi_i.rvfi_dbg;
+            rvfi_core.dbg_mode = rvfi_i.rvfi_dbg_mode;
+            rvfi_core.nmip = rvfi_i.rvfi_nmip;
+            rvfi_core.intr = rvfi_i.rvfi_intr;
+            rvfi_core.mode = rvfi_i.rvfi_mode;
+            rvfi_core.ixl = rvfi_i.rvfi_ixl;
+            rvfi_core.pc_rdata = rvfi_i.rvfi_pc_rdata;
+            rvfi_core.pc_wdata = rvfi_i.rvfi_pc_wdata;
+            rvfi_core.rs1_addr = rvfi_i.rvfi_rs1_addr;
+            rvfi_core.rs1_rdata = rvfi_i.rvfi_rs1_rdata;
+            rvfi_core.rs2_addr = rvfi_i.rvfi_rs2_addr;
+            rvfi_core.rs2_rdata = rvfi_i.rvfi_rs2_rdata;
+            rvfi_core.rs3_addr = rvfi_i.rvfi_rs3_addr;
+            rvfi_core.rs3_rdata = rvfi_i.rvfi_rs3_rdata;
+            rvfi_core.rd1_addr = rvfi_i.rvfi_rd1_addr;
+            rvfi_core.rd1_wdata = rvfi_i.rvfi_rd1_wdata;
+            rvfi_core.rd2_addr = rvfi_i.rvfi_rd2_addr;
+            rvfi_core.rd2_wdata = rvfi_i.rvfi_rd2_wdata;
+            rvfi_core.mem_addr = rvfi_i.rvfi_mem_addr;
+            rvfi_core.mem_rdata = rvfi_i.rvfi_mem_rdata;
+            rvfi_core.mem_rmask = rvfi_i.rvfi_mem_rmask;
+            rvfi_core.mem_wdata = rvfi_i.rvfi_mem_wdata;
+            rvfi_core.mem_wmask = rvfi_i.rvfi_mem_wmask;
+
+            iss_step(rvfi_core, rvfi_iss);
             rvfi_o.valid = 1'b1;     
         end
         else begin
             rvfi_o.valid = 1'b0;     
+            rvfi_core = rvfi_core;
         end
         
         rvfi_o.order = rvfi_iss.order;

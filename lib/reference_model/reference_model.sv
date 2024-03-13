@@ -14,6 +14,7 @@ module reference_model
 
     string binary;
 
+    `ifndef FORMAL
     initial begin
         if ($value$plusargs("elf_file=%s", binary))
             $display("Setting up ISS with binary %s...", binary);
@@ -22,6 +23,7 @@ module reference_model
 
         $display("Reference Model: Starting");
     end
+    `endif
 
     pipeline_shell pipeline_shell_i(
         .clknrst_if(clknrst_if),

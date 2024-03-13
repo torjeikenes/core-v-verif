@@ -25,6 +25,7 @@ import uvm_pkg::*;
 `define DUT_PATH dut_wrap.cv32e40s_wrapper_i
 `define RVFI_IF  `DUT_PATH.rvfi_instr_if
 `define INTERRUPT_IF dut_wrap.interrupt_if
+`define CLKNRST_IF dut_wrap.clknrst_if
 
 //`define STRINGIFY(x) `"x`"
 
@@ -150,7 +151,7 @@ function void check_4bit(input string compared, input bit [3:0] core, input logi
 
 
 
-        
+
 
 
       end
@@ -189,7 +190,8 @@ module uvmt_cv32e40s_reference_model_wrap
        .rvfi_o(rvfi_o)
     );
 
-    rvfi_compare rvfi_compare_i(
+    rvfi_compare_sva rvfi_compare_i(
+      .reset_n(`CLKNRST_IF.reset_n),
       .rvfi_core(rvfi_core),
       .rvfi_rm(rvfi_o)
     );
@@ -202,6 +204,7 @@ module uvmt_cv32e40s_reference_model_wrap
    string line;
    logic [31:0] irq_drv_ff;
 
+   `ifndef FORMAL // suppress warning, initial is not supported in formal
    initial begin
      @(`RVFI_IF.clk);
      void'(uvm_config_db#(uvme_cv32e40s_cfg_c)::get(null, "uvm_test_top.env", "cfg", uvm_env_cfg));
@@ -215,7 +218,8 @@ module uvmt_cv32e40s_reference_model_wrap
      fd = $fopen("reference_model.log", "w");
      $fdisplay(fd, "Reference model logging");
 
-   end
+    end
+    `endif
 
     always_ff @(posedge rvfi_o.clk) begin
       $sformat(line, "");
@@ -243,40 +247,33 @@ module uvmt_cv32e40s_reference_model_wrap
 
     assign rvfi_core.clk = `RVFI_IF.clk;
     assign rvfi_core.valid = `RVFI_IF.rvfi_valid;
+    assign rvfi_core.insn = `RVFI_IF.rvfi_insn;
+    assign rvfi_core.trap = `RVFI_IF.rvfi_trap;
+    assign rvfi_core.halt = `RVFI_IF.rvfi_halt;
+    assign rvfi_core.dbg = `RVFI_IF.rvfi_dbg;
+    assign rvfi_core.dbg_mode = `RVFI_IF.rvfi_dbg_mode;
+    assign rvfi_core.nmip = `RVFI_IF.rvfi_nmip;
+    assign rvfi_core.intr = `RVFI_IF.rvfi_intr;
+    assign rvfi_core.mode = `RVFI_IF.rvfi_mode;
+    assign rvfi_core.ixl = `RVFI_IF.rvfi_ixl;
+    assign rvfi_core.pc_rdata = `RVFI_IF.rvfi_pc_rdata;
+    assign rvfi_core.pc_wdata = `RVFI_IF.rvfi_pc_wdata;
+    assign rvfi_core.rs1_addr = `RVFI_IF.rvfi_rs1_addr;
+    assign rvfi_core.rs1_rdata = `RVFI_IF.rvfi_rs1_rdata;
+    assign rvfi_core.rs2_addr = `RVFI_IF.rvfi_rs2_addr;
+    assign rvfi_core.rs2_rdata = `RVFI_IF.rvfi_rs2_rdata;
+    assign rvfi_core.rs3_addr = `RVFI_IF.rvfi_rs3_addr;
+    assign rvfi_core.rs3_rdata = `RVFI_IF.rvfi_rs3_rdata;
+    assign rvfi_core.rd1_addr = `RVFI_IF.rvfi_rd1_addr;
+    assign rvfi_core.rd1_wdata = `RVFI_IF.rvfi_rd1_wdata;
+    assign rvfi_core.rd2_addr = `RVFI_IF.rvfi_rd2_addr;
+    assign rvfi_core.rd2_wdata = `RVFI_IF.rvfi_rd2_wdata;
 
-    always_ff @(posedge rvfi_core.clk) begin
-     if (rvfi_core.valid) begin
-
-      rvfi_core.pc_rdata = `RVFI_IF.rvfi_pc_rdata;
-      rvfi_core.insn = `RVFI_IF.rvfi_insn;
-      rvfi_core.trap = `RVFI_IF.rvfi_trap;
-      rvfi_core.halt = `RVFI_IF.rvfi_halt;
-      rvfi_core.dbg = `RVFI_IF.rvfi_dbg;
-      rvfi_core.dbg_mode = `RVFI_IF.rvfi_dbg_mode;
-      rvfi_core.nmip = `RVFI_IF.rvfi_nmip;
-      rvfi_core.intr = `RVFI_IF.rvfi_intr;
-      rvfi_core.mode = `RVFI_IF.rvfi_mode;
-      rvfi_core.ixl = `RVFI_IF.rvfi_ixl;
-      rvfi_core.pc_rdata = `RVFI_IF.rvfi_pc_rdata;
-      rvfi_core.pc_wdata = `RVFI_IF.rvfi_pc_wdata;
-      rvfi_core.rs1_addr = `RVFI_IF.rvfi_rs1_addr;
-      rvfi_core.rs1_rdata = `RVFI_IF.rvfi_rs1_rdata;
-      rvfi_core.rs2_addr = `RVFI_IF.rvfi_rs2_addr;
-      rvfi_core.rs2_rdata = `RVFI_IF.rvfi_rs2_rdata;
-      rvfi_core.rs3_addr = `RVFI_IF.rvfi_rs3_addr;
-      rvfi_core.rs3_rdata = `RVFI_IF.rvfi_rs3_rdata;
-      rvfi_core.rd1_addr = `RVFI_IF.rvfi_rd1_addr;
-      rvfi_core.rd1_wdata = `RVFI_IF.rvfi_rd1_wdata;
-      rvfi_core.rd2_addr = `RVFI_IF.rvfi_rd2_addr;
-      rvfi_core.rd2_wdata = `RVFI_IF.rvfi_rd2_wdata;
-
-      rvfi_core.mem_addr = `RVFI_IF.rvfi_mem_addr;
-      rvfi_core.mem_rdata = `RVFI_IF.rvfi_mem_rdata;
-      rvfi_core.mem_rmask = `RVFI_IF.rvfi_mem_rmask;
-      rvfi_core.mem_wdata = `RVFI_IF.rvfi_mem_wdata;
-      rvfi_core.mem_wmask = `RVFI_IF.rvfi_mem_wmask;
-    end
-    end
+    assign rvfi_core.mem_addr = `RVFI_IF.rvfi_mem_addr;
+    assign rvfi_core.mem_rdata = `RVFI_IF.rvfi_mem_rdata;
+    assign rvfi_core.mem_rmask = `RVFI_IF.rvfi_mem_rmask;
+    assign rvfi_core.mem_wdata = `RVFI_IF.rvfi_mem_wdata;
+    assign rvfi_core.mem_wmask = `RVFI_IF.rvfi_mem_wmask;
 
 
 endmodule : uvmt_cv32e40s_reference_model_wrap
