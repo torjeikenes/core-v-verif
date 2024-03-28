@@ -2,7 +2,13 @@
 proc cvfv_rerun {} {
     delete_design -golden
     start_message_log -force onespin.log
-    puts  "cvfv: compiling verilog"
+
+    #vlog -sv -f fv.flist 
+    # ^ Not used because sv2012 can not be set and has a bug(?) where it uses 
+    #   set_read_hdl_option instead of add_read_hdl_option, overwriting the 
+    #   include paths when setting "set_read_hdl_option -verilog_compilation_unit one".
+
+    # Instead we manually import all the files from fv.flist below
 
     set CV_CORE     cv32e40s
     set CORE_V_VERIF /home/torjene/core-v-verif
@@ -17,8 +23,6 @@ proc cvfv_rerun {} {
     set DV_UVMA_PATH          $CORE_V_VERIF/lib/uvm_agents
     set DV_UVME_PATH          $CORE_V_VERIF/$CV_CORE/env/uvme
     set DV_UVMT_PATH          $CORE_V_VERIF/$CV_CORE/tb/uvmt
-
-    puts $DV_UVMT_PATH
     
     set DESIGN_RTL_DIR $CV_CORE_PKG/rtl
 
@@ -44,10 +48,10 @@ proc cvfv_rerun {} {
 
 
     read_verilog -golden  -pragma_ignore {}  -version sv2012 {
-        uvm_pkg.sv 
-        defines.sv
-    }
+        ./uvm_pkg.sv 
+        ./defines.sv
 
+    }
     read_verilog -golden  -pragma_ignore {}  -version sv2012 {
         $DESIGN_RTL_DIR/include/cv32e40s_pkg.sv
         $DESIGN_RTL_DIR/cv32e40s_if_c_obi.sv
@@ -110,26 +114,20 @@ proc cvfv_rerun {} {
         $DESIGN_RTL_DIR/../bhv/cv32e40s_rvfi.sv
         $DESIGN_RTL_DIR/../bhv/cv32e40s_rvfi_sim_trace.sv
 
-
     } 
-
-
-    read_verilog -golden  -pragma_ignore {} -version sv2012 {
-        $DV_ISA_DECODER_PATH/isa_decoder_pkg.sv}
-
     read_verilog -golden  -pragma_ignore {}  -version sv2012 {
-        $DV_SUPPORT_PATH/support_pkg.sv}
 
-    read_verilog -golden  -pragma_ignore {}  -version sv2012 {
+        $DV_ISA_DECODER_PATH/isa_decoder_pkg.sv
+
+        $DV_SUPPORT_PATH/support_pkg.sv
+
         $DV_UVM_TESTCASE_PATH/base-tests/uvmt_cv32e40s_base_test_pkg.sv
         $DV_UVMA_PATH/uvma_obi_memory/src/uvma_obi_memory_assert.sv
         $DV_UVMA_PATH/uvma_obi_memory/src/uvma_obi_memory_1p2_assert.sv
-    }
         
-    read_verilog -golden  -pragma_ignore {}  -version sv2012 {
         ./dummy_pkg.sv
-    }
 
+    }
     read_verilog -golden  -pragma_ignore {}  -version sv2012 {
         $DV_UVMA_PATH/uvma_clic/uvma_clic_if.sv
         $DV_UVMA_PATH/uvma_debug/uvma_debug_if.sv
@@ -142,10 +140,8 @@ proc cvfv_rerun {} {
         $DV_UVMA_PATH/uvma_wfe_wu/uvma_wfe_wu_if.sv
         $DV_UVME_PATH/uvme_cv32e40s_core_cntrl_if.sv
         $DV_UVMT_PATH/uvmt_cv32e40s_tb_ifs.sv
-    }
 
 
-    read_verilog -golden  -pragma_ignore {}  -version sv2012 {
         $DV_UVMT_PATH/uvmt_cv32e40s_dut_wrap.sv
         $DV_UVMT_PATH/uvmt_cv32e40s_tb.sv
 
@@ -197,8 +193,6 @@ proc cvfv_rerun {} {
         $RM_HOME/reference_model.sv
         $RM_HOME/pipeline_shell.sv
 
-    }
-    read_verilog -golden  -pragma_ignore {}  -version sv2012 {
         $RM_HOME/reference_model_sva.sv
     }
 
