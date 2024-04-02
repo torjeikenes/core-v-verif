@@ -57,7 +57,13 @@ public:
    * */
   std::vector<st_rvfi> step(size_t n, std::vector<st_rvfi> &vreference);
 
-  void set_mip(reg_t mask);
+  /*
+   * Set the MIP register
+   * *
+   * * @param mask:  The value to be set
+   * * @return:  True if interrupt will be taken, false if not
+   * */
+  bool set_mip(reg_t mask);
 
   /*
    * Proposed constuctor for the Simulation class

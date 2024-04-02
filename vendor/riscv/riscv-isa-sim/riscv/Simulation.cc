@@ -206,7 +206,7 @@ std::vector<st_rvfi> Simulation::step(size_t n,
   return vspike;
 }
 
-void Simulation::set_mip(reg_t mip) {
+bool Simulation::set_mip(reg_t mip) {
   state_t *state = procs[0]->get_state();
 
   uint32_t old_mip = state->mip->read();
@@ -214,14 +214,13 @@ void Simulation::set_mip(reg_t mip) {
   uint32_t mstatus = state->mstatus->read();
 
   state->mip->write_with_mask(ENABLED_IRQ_MASK, mip);
-  fprintf(procs[0]->get_log_file(), "mip %lx set to %lx\n", mip, mip & ENABLED_IRQ_MASK);
 
   //Don't continue if the the interrupt is disabled, or if we are in debug mode
   if( !get_field(mstatus, MSTATUS_MIE) ||
       state->debug_mode  ||
       (procs[0]->halt_request == processor_t::HR_REGULAR)) 
   {
-    return;
+    return false;
   }
 
 
@@ -235,7 +234,12 @@ void Simulation::set_mip(reg_t mip) {
     //This step only sets the correct state for the interrupt, but does not actually execute an instruction
     //Another step needs to be taken to actually step through the instruction
     ((Processor *)procs[0])->step(1, vref);
+    fprintf(procs[0]->get_log_file(), "mip %lx set to %lx\n", mip, mip & ENABLED_IRQ_MASK);
+  } else {
+    return false;
   }
+  
+  return true;
   
 }
 
