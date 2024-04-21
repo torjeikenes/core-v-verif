@@ -524,6 +524,7 @@ void state_t::reset(processor_t* const proc, reg_t max_isa)
   log_reg_write.clear();
   log_mem_read.clear();
   log_mem_write.clear();
+  log_mem_pre_write.clear();
   last_inst_priv = 0;
   last_inst_xlen = 0;
   last_inst_flen = 0;

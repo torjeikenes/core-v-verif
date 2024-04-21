@@ -12,15 +12,31 @@
 #include <stdexcept>
 #include <string>
 
+#include "mmu.h"
+
 namespace openhw {
 st_rvfi Processor::step(size_t n, st_rvfi reference) {
   st_rvfi rvfi;
+  FILE *log_file = this->get_log_file();
   memset(&rvfi, 0, sizeof(st_rvfi));
 
   this->taken_trap = false;
 
+  // Store the state before stepping
+  state_t prev_state = *this->get_state();
+
   rvfi.pc_rdata = this->get_state()->pc; // Current PC
   processor_t::step(n);
+
+  // Add overwritten values from memory writes during the step
+  prev_changes_t prev_changes(prev_state, this->get_state()->log_mem_pre_write);
+  previous_states.push_front(prev_changes);
+
+  if(previous_states.size() > max_previous_states) {
+    previous_states.pop_back();
+  }
+  //printf("num previous states: %d, pc0: %x, mem writes0: %d\n",previous_states.size(), std::get<0>(previous_states[0]).pc, std::get<1>(previous_states[0]).size());
+
   rvfi.pc_wdata = this->get_state()->pc; // Next predicted PC
 
   rvfi.mode = this->get_state()->last_inst_priv;
@@ -106,7 +122,7 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
     //mem format: (addr, value, size)
     if(!mem_access) {
       rvfi.mem_addr = std::get<0>(mem);
-      rvfi.mem_wdata = ::get<1>(mem); // value
+      rvfi.mem_wdata = std::get<1>(mem); // value
       //mem_wmask should hold a bitmask of which bytes in mem_wdata contain valid data
       write_len = std::get<2>(mem);
       rvfi.mem_wmask = (1 << write_len) - 1;
@@ -142,6 +158,62 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
 
   return rvfi;
 }
+
+void Processor::revert_step(int num_steps) {
+  FILE *log_file = this->get_log_file();
+
+
+  if (previous_states.size() < num_steps) {
+    throw std::runtime_error("Cannot revert more states than stored");
+  }
+
+  for(auto state: previous_states) {
+    fprintf(log_file, "pc: %x | ", std::get<0>(state).pc);
+  }
+  fprintf(log_file, "\n");
+
+
+
+  fprintf(log_file, "revert from PC: %x", this->state.pc);
+
+  prev_changes_t prev_changes = previous_states[num_steps];
+  this->state = std::get<0>(prev_changes);
+
+  fprintf(log_file, " to PC: %x\n", this->state.pc);
+
+  for (int i = 0; i <= num_steps; i++) {
+    prev_changes_t prev_changes = previous_states.front();
+    previous_states.pop_front();
+
+    commit_log_mem_t log_mem_pre_write = std::get<1>(prev_changes);
+    fprintf(log_file, "revert mem pc: %x num: %d\n", std::get<0>(prev_changes).pc, log_mem_pre_write.size());
+
+    for (auto mem_write : log_mem_pre_write) {
+      fprintf(log_file, "revert mem: addr: %x val: %x size: %x", std::get<0>(mem_write), std::get<1>(mem_write), std::get<2>(mem_write));
+      printf("revert\n");
+      switch (std::get<2>(mem_write))
+      {
+      case 1:
+        this->get_mmu()->store<uint8_t>(std::get<0>(mem_write), (uint8_t)std::get<1>(mem_write),0);
+        break;
+      case 2:
+        this->get_mmu()->store<uint16_t>(std::get<0>(mem_write), (uint16_t)std::get<1>(mem_write),0);
+        break;
+      case 4:
+        this->get_mmu()->store<uint32_t>(std::get<0>(mem_write), (uint32_t)std::get<1>(mem_write),0);
+        break;
+      
+      default:
+        break;
+      }
+      fprintf(log_file, " OK\n");
+    }
+  }
+
+  //Clear write commit log to discard the writes generated above
+  this->get_state()->log_mem_write.clear();
+}
+
 
 Processor::Processor(
     const isa_parser_t *isa, const cfg_t *cfg, simif_t *sim, uint32_t id,
@@ -263,6 +335,8 @@ Processor::Processor(
     this->state.misa->set_we(misa_we);
 
   this->next_rvfi_intr = 0;
+
+  this->max_previous_states = 4; //TODO: make this a parameter
 }
 
 void Processor::take_trap(trap_t &t, reg_t epc) {

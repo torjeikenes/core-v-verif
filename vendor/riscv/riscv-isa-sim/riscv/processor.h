@@ -173,6 +173,7 @@ struct state_t
   commit_log_reg_t log_reg_write;
   commit_log_mem_t log_mem_read;
   commit_log_mem_t log_mem_write;
+  commit_log_mem_t log_mem_pre_write;
   reg_t last_inst_priv;
   int last_inst_xlen;
   int last_inst_flen;

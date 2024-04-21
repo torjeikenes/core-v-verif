@@ -206,41 +206,60 @@ std::vector<st_rvfi> Simulation::step(size_t n,
   return vspike;
 }
 
-bool Simulation::set_mip(reg_t mip) {
+bool Simulation::will_trigger_interrupt(reg_t mip) {
   state_t *state = procs[0]->get_state();
 
   uint32_t old_mip = state->mip->read();
   uint32_t mie = state->mie->read();
   uint32_t mstatus = state->mstatus->read();
 
-  state->mip->write_with_mask(ENABLED_IRQ_MASK, mip);
-
-  //Don't continue if the the interrupt is disabled, or if we are in debug mode
-  if( !get_field(mstatus, MSTATUS_MIE) ||
-      state->debug_mode  ||
-      (procs[0]->halt_request == processor_t::HR_REGULAR)) 
-  {
-    return false;
-  }
-
-
   uint32_t old_en_irq = old_mip & mie;
   uint32_t new_en_irq = mip & mie;
 
-  st_rvfi vref; //Passed to step, but not used
-
-  //only step if the mip is new
-  if((old_en_irq == 0 ) && (new_en_irq != 0)) {
-    //This step only sets the correct state for the interrupt, but does not actually execute an instruction
-    //Another step needs to be taken to actually step through the instruction
-    ((Processor *)procs[0])->step(1, vref);
-    fprintf(procs[0]->get_log_file(), "mip %lx set to %lx\n", mip, mip & ENABLED_IRQ_MASK);
+  // Only take interrupt if interrupt is enabled, not in debug mode, not halted, 
+  // and the interrupt is new and not zero
+  if( get_field(mstatus, MSTATUS_MIE) &&
+      !state->debug_mode  &&
+      (procs[0]->halt_request != processor_t::HR_REGULAR) &&
+      //(old_en_irq == 0 ) && 
+      (new_en_irq != 0)) 
+  {
+    return true;
   } else {
     return false;
   }
+}
+
+
+bool Simulation::interrupt(reg_t mip, uint32_t revert_steps) {
+  state_t *state = procs[0]->get_state();
+
+  st_rvfi vref; //Passed to step, but not used
+
+  if(will_trigger_interrupt(mip)) {
+    fprintf(procs[0]->get_log_file(), "revert state mip %lx\n", mip);
+    revert_state(revert_steps);
+    state->mip->write_with_mask(ENABLED_IRQ_MASK, mip);
+
+    // This step only sets the correct state for the interrupt, but does not actually execute an instruction
+    // Another step needs to be taken to actually step through the instruction
+    // Therefore we discard the rvfi values returned from this step
+    ((Processor *)procs[0])->step(1, vref);
+    fprintf(procs[0]->get_log_file(), "mip %lx set to %lx\n", mip, mip & ENABLED_IRQ_MASK);
+
+    return true;
+  } else {
+    // Set mip to 0 when the the interrupt will not be taken, to control when spike should take the interrrupt
+    state->mip->write_with_mask(ENABLED_IRQ_MASK, 0);
+    //fprintf(procs[0]->get_log_file(), "mip %lx set to %lx\n", mip, mip & ENABLED_IRQ_MASK);
+
+    return false;
+  }
   
-  return true;
-  
+}
+
+void Simulation::revert_state(int num_steps) {
+  ((Processor *)procs[0])->revert_step(num_steps);
 }
 
 #if 0 // FORNOW Unused code, disable until needed.

@@ -145,7 +145,12 @@ extern "C" void spike_step_svOpenArray(svOpenArrayHandle reference, svOpenArrayH
   rvfi2sv(spike_rvfi, spike);
 }
 
-extern "C" bool spike_set_mip(uint32_t mip)
+extern "C" bool spike_interrupt(uint32_t mip, uint32_t revert_steps)
 {
-  return sim->set_mip(mip);
+  return sim->interrupt(mip, revert_steps);
+}
+
+extern "C" void spike_revert_state(int num_steps)
+{
+  sim->revert_state(num_steps);
 }

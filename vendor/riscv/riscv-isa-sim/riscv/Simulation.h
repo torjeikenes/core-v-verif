@@ -58,12 +58,26 @@ public:
   std::vector<st_rvfi> step(size_t n, std::vector<st_rvfi> &vreference);
 
   /*
+   * Return true if the mip will trigger an interrupt
+   * 
+  */
+  bool will_trigger_interrupt(reg_t mip);
+
+  /*
    * Set the MIP register
    * *
    * * @param mask:  The value to be set
+   * * @param revert_steps: Number of steps to revert if the interrupt will be taken 
    * * @return:  True if interrupt will be taken, false if not
    * */
-  bool set_mip(reg_t mask);
+  bool interrupt(reg_t mask, uint32_t revert_steps);
+
+  /*
+   * Revert the state  
+   * *
+   * * @param num_steps:  number of steps to revert
+   * */
+  void revert_state(int num_steps);
 
   /*
    * Proposed constuctor for the Simulation class
