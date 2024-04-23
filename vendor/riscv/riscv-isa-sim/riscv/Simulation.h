@@ -58,19 +58,14 @@ public:
   std::vector<st_rvfi> step(size_t n, std::vector<st_rvfi> &vreference);
 
   /*
-   * Return true if the mip will trigger an interrupt
-   * 
-  */
-  bool will_trigger_interrupt(reg_t mip);
-
-  /*
    * Set the MIP register
    * *
    * * @param mask:  The value to be set
    * * @param revert_steps: Number of steps to revert if the interrupt will be taken 
+   * * @param interrupt_allowed: True if interrupt is allowed to be taken 
    * * @return:  True if interrupt will be taken, false if not
    * */
-  bool interrupt(reg_t mask, uint32_t revert_steps);
+  bool interrupt(reg_t mask, uint32_t revert_steps, bool interrupt_allowed);
 
   /*
    * Revert the state  

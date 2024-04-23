@@ -14,6 +14,9 @@
 
 #include "mmu.h"
 
+// TODO: parameterize
+#define ENABLED_IRQ_MASK 0xFFFF0888 //Enable IRQ 3, 7, 11, and 16-31 (From CV32E40S documentation) 
+
 namespace openhw {
 st_rvfi Processor::step(size_t n, st_rvfi reference) {
   st_rvfi rvfi;
@@ -213,6 +216,61 @@ void Processor::revert_step(int num_steps) {
   //Clear write commit log to discard the writes generated above
   this->get_state()->log_mem_write.clear();
 }
+
+bool Processor::will_trigger_interrupt(reg_t mip) {
+  state_t *state = this->get_state();
+
+  uint32_t old_mip = state->mip->read();
+  uint32_t mie = state->mie->read();
+  uint32_t mstatus = state->mstatus->read();
+  uint32_t old_en_irq = old_mip & mie;
+  uint32_t new_en_irq = mip & mie;
+
+
+  // Only take interrupt if interrupt is enabled, not in debug mode, not halted, 
+  // and the interrupt is new and not zero
+  if( get_field(mstatus, MSTATUS_MIE) &&
+      !state->debug_mode  &&
+      (this->halt_request != processor_t::HR_REGULAR) &&
+      //(old_en_irq == 0 ) && 
+      (new_en_irq != 0)) 
+  {
+    return true;
+  } else {
+    return false;
+  }
+}
+
+bool Processor::interrupt(reg_t mip, uint32_t revert_steps, bool interrupt_allowed) {
+  state_t *state = this->get_state();
+
+
+  st_rvfi vref; //Passed to step, but not used
+
+  this->interrupt_allowed = interrupt_allowed;
+
+  if(interrupt_allowed && will_trigger_interrupt(mip)) {
+    fprintf(this->get_log_file(), "interrupt mip %lx\n", mip);
+
+    this->revert_step(revert_steps);
+
+    state->mip->write_with_mask(ENABLED_IRQ_MASK, mip);
+
+    // This step only sets the correct state for the interrupt, but does not actually execute an instruction
+    // Another step needs to be taken to actually step through the instruction
+    // Therefore we discard the rvfi values returned from this step
+    this->step(1, vref);
+    fprintf(this->get_log_file(), "mip %lx set to %lx\n", mip, mip & ENABLED_IRQ_MASK);
+
+    return true;
+  } else {
+    state->mip->write_with_mask(ENABLED_IRQ_MASK, mip);
+    return false;
+  }
+ 
+}
+
+
 
 
 Processor::Processor(

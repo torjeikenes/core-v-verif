@@ -14,6 +14,8 @@ public:
   ~Processor();
   st_rvfi step(size_t n, st_rvfi reference);
   void revert_step(int num_steps);
+  bool will_trigger_interrupt(reg_t mip);
+  bool interrupt(reg_t mip, uint32_t revert_steps, bool interrupt_allowed);
 
   inline void set_XPR(reg_t num, reg_t value);
   inline void set_FPR(reg_t num, float128_t value);
