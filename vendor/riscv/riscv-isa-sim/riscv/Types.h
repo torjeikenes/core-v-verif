@@ -9,8 +9,9 @@
 #include <sys/types.h>
 #include "Params.h"
 
+#define CSR_SIZE 250
 
-typedef struct  {
+typedef struct {
    uint64_t                 nret_id;
    uint64_t                 cycle_cnt;
    uint64_t                 order;
@@ -54,6 +55,13 @@ typedef struct  {
    uint64_t                 mem_rmask;
    uint64_t                 mem_wdata;
    uint64_t                 mem_wmask;
+
+   uint64_t                 csr_valid   [CSR_SIZE];
+   uint64_t                 csr_addr    [CSR_SIZE];
+   uint64_t                 csr_rdata   [CSR_SIZE];
+   uint64_t                 csr_rmask   [CSR_SIZE];
+   uint64_t                 csr_wdata   [CSR_SIZE];
+   uint64_t                 csr_wmask   [CSR_SIZE];
 
 } st_rvfi;
 

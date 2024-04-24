@@ -95,11 +95,6 @@ class uvma_rvfi_agent_c#(int ILEN=DEFAULT_ILEN,
     */
    extern function void connect_trn_loggers();
 
-   /**
-    * Connects reference model port to monitor analysis ports.
-    */
-   extern function void connect_reference_model();
-
 endclass : uvma_rvfi_agent_c
 
 
@@ -168,34 +163,47 @@ function void uvma_rvfi_agent_c::retrieve_vif();
    cntxt.instr_vif = new[cfg.nret];
    for (int i = 0; i < cfg.nret; i++) begin
       if (!uvm_config_db#(virtual uvma_rvfi_instr_if#(ILEN,XLEN))::get(this, "", $sformatf("instr_vif%0d", i), cntxt.instr_vif[i])) begin
-         `uvm_fatal("VIF", $sformatf("Could not find vif handle of type %s in uvm_config_db",
-                                     $typename(cntxt.instr_vif[i])))
+          `uvm_fatal("VIF", $sformatf("Could not find vif handle of type %s in uvm_config_db",
+                                      $typename(cntxt.instr_vif[i])))
       end
       else begin
-         `uvm_info("VIF", $sformatf("Found vif handle of type %s in uvm_config_db",
-                                    $typename(cntxt.instr_vif[i])), UVM_DEBUG)
+          `uvm_info("VIF", $sformatf("Found vif handle of type %s in uvm_config_db",
+                                      $typename(cntxt.instr_vif[i])), UVM_DEBUG)
       end
    end
 
    // Create virtual interface and fetch virtual interface for each supported CSR
-   begin
+   if (!cfg.core_cfg.disable_all_csr_checks) begin
       string csrs[$];
 
-      cfg.core_cfg.get_supported_csrs(csrs);
+      cfg.core_cfg.get_supported_csrs_names(csrs);
+      if (!cfg.unified_csr_vif) begin
+        foreach (csrs[c]) begin
+            string csr = csrs[c].tolower();
+            cntxt.csr_vif[csr] = new[cfg.nret];
 
-      foreach (csrs[c]) begin
-         string csr = csrs[c].tolower();;
-         cntxt.csr_vif[csr] = new[cfg.nret];
-
-         for (int i = 0; i < cfg.nret; i++) begin
-            if (!uvm_config_db#(virtual uvma_rvfi_csr_if#(XLEN))::get(this, "", $sformatf("csr_%s_vif%0d", csr, i), cntxt.csr_vif[csr][i])) begin
-               `uvm_fatal("VIF", $sformatf("Could not find vif handle of type %s, csr [%s] in uvm_config_db",
-                                           $typename(cntxt.csr_vif[csr][i]), csr))
-            end else begin
-               `uvm_info("VIF", $sformatf("Found vif handle of type %s, csr [%s] in uvm_config_db",
-                                          $typename(cntxt.csr_vif[csr][i]), csr), UVM_DEBUG)
+            for (int i = 0; i < cfg.nret; i++) begin
+                if (!uvm_config_db#(virtual uvma_rvfi_csr_if#(XLEN))::get(this, "", $sformatf("csr_%s_vif%0d", csr, i), cntxt.csr_vif[csr][i])) begin
+                `uvm_fatal("VIF", $sformatf("Could not find vif handle of type %s, csr [%s] in uvm_config_db",
+                                            $typename(cntxt.csr_vif[csr][i]), csr))
+                end else begin
+                `uvm_info("VIF", $sformatf("Found vif handle of type %s, csr [%s] in uvm_config_db",
+                                            $typename(cntxt.csr_vif[csr][i]), csr), UVM_DEBUG)
+                end
             end
-         end
+        end
+      end
+      else begin
+        cntxt.csr_unified_vif = new[cfg.nret];
+        for (int i = 0; i < cfg.nret; i++) begin
+            if (!uvm_config_db#(virtual uvma_rvfi_unified_csr_if#(4096, XLEN))::get(this, "", $sformatf("csr_vif%0d", i), cntxt.csr_unified_vif[i])) begin
+            `uvm_fatal("VIF", $sformatf("Could not find vif handle of type %s, csr_vif in uvm_config_db",
+                                        $typename(cntxt.csr_unified_vif[i])))
+            end else begin
+            `uvm_info("VIF", $sformatf("Found vif handle of type %s, csr_vif in uvm_config_db",
+                                        $typename(cntxt.csr_unified_vif[i])), UVM_DEBUG)
+            end
+        end
       end
    end
 

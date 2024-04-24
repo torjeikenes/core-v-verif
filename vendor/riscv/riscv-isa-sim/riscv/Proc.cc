@@ -24,6 +24,7 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
   memset(&rvfi, 0, sizeof(st_rvfi));
 
   this->taken_trap = false;
+  this->which_trap = 0;
 
   // Store the state before stepping
   state_t prev_state = *this->get_state();
@@ -58,7 +59,10 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
   rvfi.rs2_addr = this->get_state()->last_inst_fetched.rs2();
   // TODO add rs2_value
 
- if(this->next_rvfi_intr){
+  //rvfi.trap = this->taken_trap;
+  //rvfi.trap |= (this->which_trap << 1);
+
+  if(this->next_rvfi_intr){
     rvfi.intr = next_rvfi_intr;
     this->next_rvfi_intr = 0;
   }
@@ -86,27 +90,37 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
 
   bool got_commit = false;
   for (auto &reg : reg_commits) {
+    if ((reg.first >> 4) > 32) {
+          if ((reg.first >> 4) < 0xFFF) {
+            for (size_t i = 0; i < CSR_SIZE; i++) {
+                if (!rvfi.csr_valid[i]) {
+                    rvfi.csr_valid[i] = 1;
+                    rvfi.csr_addr[i] = reg.first >> 4;
+                    rvfi.csr_wdata[i] = reg.second.v[0];
+                    rvfi.csr_wmask[i] = -1;
+                    break;
+                }
+            }
+          }
+    }
+    else {
+        // TODO FIXME Take into account the XLEN/FLEN for int/FP values.
+        rvfi.rd1_addr = reg.first >> 4;
+        rvfi.rd1_wdata = reg.second.v[0];
+        // TODO FIXME Handle multiple register commits per cycle.
+        // TODO FIXME This must be handled on the RVFI side as well.
+    }
+
     // popret(z) should return rd1_addr = 0 to match with the core
-    if (((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRET) == MATCH_CM_POPRET) ||
-        ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRETZ) == MATCH_CM_POPRETZ)) {
-      got_commit = true;
-      continue;
-    }
-    if (!got_commit) {
-      rvfi.rd1_addr = reg.first >> 4;
-      if (rvfi.rd1_addr > 32)
-        continue;
-      // TODO FIXME Take into account the XLEN/FLEN for int/FP values.
-      rvfi.rd1_wdata = reg.second.v[0];
-      // TODO FIXME Handle multiple register commits per cycle.
-      // TODO FIXME This must be handled on the RVFI side as well.
-      got_commit = true; // FORNOW Latch only the first commit.
-    }
+    //if (((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRET) == MATCH_CM_POPRET) ||
+    //    ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRETZ) == MATCH_CM_POPRETZ)) {
+    //  got_commit = true;
+    //  continue;
+    //}
+    
   }
 
-  //TODO FIXME handle multiple memory accesses in a single insn
   bool mem_access = false;
-
   int read_len;
   for (auto &mem : mem_read_commits) {
     //mem format: (addr, 0, size) (value is not stored for reads, but should be the same as rd)
@@ -133,22 +147,23 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
     }
 
   }
-
-
-  // Inject values comming from the reference
-  if ((rvfi.insn & MASK_CSRRS) == MATCH_CSRRS) {
-    if (rvfi.rs1_addr == 0) {
-      reg_t read_csr = this->get_state()->last_inst_fetched.csr();
-      switch (read_csr) {
-      case 0xC00: // cycle
-      case 0xC80: // cycleh
-      case 0xB00: // mcycle
-      case 0xB80: // mcycleh
-        this->set_XPR(reference.rd1_addr, reference.rd1_wdata);
-        rvfi.rd1_wdata = reference.rd1_wdata;
-        break;
-      default:
-        break;
+  
+  if (csr_counters_injection) {
+    // Inject values comming from the reference
+    if ((rvfi.insn & MASK_CSRRS) == MATCH_CSRRS) {
+      if (rvfi.rs1_addr == 0) {
+        reg_t read_csr = this->get_state()->last_inst_fetched.csr();
+        switch (read_csr) {
+        case 0xC00: // cycle
+        case 0xC80: // cycleh
+        case 0xB00: // mcycle
+        case 0xB80: // mcycleh
+          this->set_XPR(reference.rd1_addr, reference.rd1_wdata);
+          rvfi.rd1_wdata = reference.rd1_wdata;
+          break;
+        default:
+          break;
+        }
       }
     }
   }
@@ -158,7 +173,6 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
     rvfi.pc_rdata &= 0xffffffffULL;
     rvfi.rd1_wdata &= 0xffffffffULL;
   }
-
   return rvfi;
 }
 
@@ -280,35 +294,16 @@ Processor::Processor(
     : processor_t::processor_t(isa, cfg, sim, id, halt_on_reset, log_file,
                                sout_) {
 
-  this->params.set("/top/core/0/", "isa", any(std::string("RV32GC")));
-  this->params.set("/top/core/0/", "priv", DEFAULT_PRIV);
-  this->params.set("/top/core/0/", "boot_addr", any(0x80000000UL));
-  this->params.set("/top/core/0/", "mmu_mode", any(std::string("sv39")));
-
-  this->params.set("/top/core/0/", "pmpregions", any(0x0UL));
-  this->params.set("/top/core/0/", "pmpaddr0", any(0x0UL));
-  this->params.set("/top/core/0/", "pmpcfg0", any(0x0UL));
-  this->params.set("/top/core/0/", "marchid", any(0x15UL));
-  this->params.set("/top/core/0/", "mvendorid", any(0x00000602UL));
-  this->params.set("/top/core/0/", "status_fs_field_we_enable", any(false));
-  this->params.set("/top/core/0/", "status_fs_field_we", any(false));
-  this->params.set("/top/core/0/", "status_vs_field_we_enable", any(false));
-  this->params.set("/top/core/0/", "status_vs_field_we", any(false));
-  this->params.set("/top/core/0/", "misa_we_enable", any(true));
-  this->params.set("/top/core/0/", "misa_we", any(false));
-
-  this->params.set("/top/core/0/", "extensions", any(std::string("")));
-
   std::map<string, bool> registered_extensions_v;
   registered_extensions_v["cv32a60x"] = false;
 
-  // Process User Params
-  ParseParams("/top/core/0/", this->params, params);
+  string base = "/top/core/" + std::to_string(id) + "/";
+  Processor::default_params(base, this->params);
+  Params::parse_params(base, this->params, params);
 
-  string isa_str = std::any_cast<string>(this->params["/top/core/0/isa"]);
-  string priv_str = std::any_cast<string>(this->params["/top/core/0/priv"]);
-  std::cout << "[SPIKE] Proc 0 | ISA: " << isa_str << " PRIV: " << priv_str
-            << std::endl;
+  string isa_str = this->params[base + "isa"].a_string;
+  string priv_str = this->params[base + "priv"].a_string;
+  std::cout << "[SPIKE] Proc 0 | ISA: " << isa_str << " PRIV: " << priv_str << std::endl;
   this->isa =
       (const isa_parser_t *)new isa_parser_t(isa_str.c_str(), priv_str.c_str());
 
@@ -318,8 +313,17 @@ Processor::Processor(
     register_extension(e.second);
   }
 
+  this->n_pmp = (this->params[base + "pmpregions"]).a_uint64_t;
+
+  ((cfg_t *)cfg)->misaligned =
+      (this->params[base + "misaligned"]).a_bool;
+
+
+  this->csr_counters_injection =
+      (this->params[base + "csr_counters_injection"]).a_bool;
   string extensions_str =
-      std::any_cast<string>(this->params["/top/core/0/extensions"]);
+      (this->params[base + "extensions"]).a_string;
+
   string delimiter = ",";
   size_t found = extensions_str.rfind(delimiter);
 
@@ -351,28 +355,23 @@ Processor::Processor(
 
   this->reset();
 
-  uint64_t new_pc =
-      std::any_cast<uint64_t>(this->params["/top/core/0/boot_addr"]);
+  uint64_t new_pc = (this->params[base + "boot_addr"]).a_uint64_t;
   this->state.pc = new_pc;
 
-  this->put_csr(CSR_PMPADDR0,
-                std::any_cast<uint64_t>(this->params["/top/core/0/pmpaddr0"]));
-  this->put_csr(CSR_PMPCFG0,
-                std::any_cast<uint64_t>(this->params["/top/core/0/pmpcfg0"]));
+  this->put_csr(CSR_PMPADDR0, (this->params[base + "pmpaddr0"]).a_uint64_t);
+  this->put_csr(CSR_PMPCFG0, (this->params[base + "pmpcfg0"]).a_uint64_t);
 
-  this->put_csr(CSR_MVENDORID,
-                std::any_cast<uint64_t>(this->params["/top/core/0/mvendorid"]));
-  this->put_csr(CSR_MARCHID,
-                std::any_cast<uint64_t>(this->params["/top/core/0/marchid"]));
+  this->state.csrmap[CSR_MVENDORID] =
+      std::make_shared<const_csr_t>(this, CSR_MVENDORID, (this->params[base + "mvendorid"]).a_uint64_t);
+  this->state.csrmap[CSR_MHARTID] =
+      std::make_shared<const_csr_t>(this, CSR_MHARTID, (this->params[base + "mhartid"]).a_uint64_t);
+  this->state.csrmap[CSR_MARCHID] =
+      std::make_shared<const_csr_t>(this, CSR_MHARTID, (this->params[base + "marchid"]).a_uint64_t);
 
-  bool fs_field_we_enable = std::any_cast<bool>(
-      this->params["/top/core/0/status_fs_field_we_enable"]);
-  bool fs_field_we =
-      std::any_cast<bool>(this->params["/top/core/0/status_fs_field_we"]);
-  bool vs_field_we_enable = std::any_cast<bool>(
-      this->params["/top/core/0/status_vs_field_we_enable"]);
-  bool vs_field_we =
-      std::any_cast<bool>(this->params["/top/core/0/status_vs_field_we"]);
+  bool fs_field_we_enable = (this->params[base + "status_fs_field_we_enable"]).a_bool;
+  bool fs_field_we = (this->params[base + "status_fs_field_we"]).a_bool;
+  bool vs_field_we_enable = (this->params[base + "status_vs_field_we_enable"]).a_bool;
+  bool vs_field_we = (this->params[base + "status_vs_field_we"]).a_bool;
 
   reg_t sstatus_mask = this->state.mstatus->get_param_write_mask();
   if (fs_field_we_enable)
@@ -387,8 +386,8 @@ Processor::Processor(
   this->put_csr(CSR_MSTATUS, MSTATUS_MPP);
 
   bool misa_we_enable =
-      std::any_cast<bool>(this->params["/top/core/0/misa_we_enable"]);
-  bool misa_we = std::any_cast<bool>(this->params["/top/core/0/misa_we"]);
+      (this->params[base + "misa_we_enable"]).a_bool;
+  bool misa_we = (this->params[base + "misa_we"]).a_bool;
   if (misa_we_enable)
     this->state.misa->set_we(misa_we);
 
@@ -404,6 +403,48 @@ void Processor::take_trap(trap_t &t, reg_t epc) {
 }
 
 Processor::~Processor() { delete this->isa; }
+
+void Processor::default_params(string base, openhw::Params &params) {
+  params.set_string(base, "isa", "RV32GC", "RV32GC",
+             "ISA");
+  params.set_string(base, "priv", DEFAULT_PRIV,
+             DEFAULT_PRIV, "Privilege Level");
+  params.set_uint64_t(base, "boot_addr", 0x80000000UL, "0x80000000UL",
+             "First PC of the core");
+  params.set_string(base, "mmu_mode", "sv39", "sv39",
+             "Memory virtualization mode");
+
+  params.set_uint64_t(base, "pmpregions", 0x0UL, "0x0",
+             "Number of PMP regions");
+  params.set_uint64_t(base, "pmpaddr0", 0x0UL, "0x0",
+             "Default PMPADDR0 value");
+  params.set_uint64_t(base, "pmpcfg0", 0x0UL, "0x0",
+             "Default PMPCFG0 value");
+  params.set_uint64_t(base, "marchid", 0x3UL, "0x3", "MARCHID value");
+  params.set_uint64_t(base, "mhartid", 0x0UL, "0x0", "MHARTID value");
+  params.set_uint64_t(base, "mvendorid", 0x00000602UL, "0x00000602UL",
+             "MVENDORID value");
+  params.set_string(base, "extensions", "", "", "Possible extensions: cv32a60x, cvxif");
+
+  params.set_bool(base, "status_fs_field_we_enable", false, "false",
+             "XSTATUS CSR FS Write Enable param enable");
+  params.set_bool(base, "status_fs_field_we", false, "false",
+             "XSTATUS CSR FS Write Enable");
+  params.set_bool(base, "status_vs_field_we_enable", false, "false",
+             "XSTATUS CSR VS Write Enable param enable");
+  params.set_bool(base, "status_vs_field_we", false, "false",
+             "XSTATUS CSR VS Write Enable");
+  params.set_bool(base, "misa_we_enable", true, "true",
+             "MISA CSR Write Enable param enable");
+  params.set_bool(base, "misa_we", false, "false",
+             "MISA CSR Write Enable value");
+
+  params.set_bool(base, "misaligned", false, "false",
+             "Support for misaligned memory operations");
+
+  params.set_bool(base, "csr_counters_injection", false, "false",
+             "Allow to set CSRs getting values from a DPI");
+}
 
 inline void Processor::set_XPR(reg_t num, reg_t value) {
   this->state.XPR.write(num, value);

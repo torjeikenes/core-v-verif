@@ -36,6 +36,34 @@ debug_module_config_t dm_config = {.progbufsize = 2,
                                    .support_haltgroups = true,
                                    .support_impebreak = true};
 
+void Simulation::default_params(openhw::Params &params) {
+  params.set_bool("/top/", "generic_core_config", true, "true",
+             "Make generic configuration for all cores");
+
+  params.set_bool("/top/", "bootrom", true, "true",
+             "bootrom enable");
+  params.set_uint64_t("/top/", "bootrom_base", 0x10000UL,
+             "0x10000", "bootrom address");
+  params.set_uint64_t("/top/", "bootrom_size", 0x1000UL, "0x1000",
+             "bootrom size");
+
+  params.set_bool("/top/", "dram", true, "true", "DRAM enable");
+  params.set_uint64_t("/top/", "dram_base", 0x80000000UL,
+             "0x80000000", "DRAM base address");
+  params.set_uint64_t("/top/", "dram_size", 0x400UL * 1024 * 1024,
+             "0x40000000", "DRAM size");
+
+  params.set_bool("/top/", "log_commits", true, "True",
+             "Log commit enable");
+
+  params.set_bool("/top/", "max_steps_enabled", false, "False",
+             "Maximum steps enable");
+  params.set_uint64_t("/top/", "max_steps", 200000UL, "200000",
+             "Maximum steps that the simulation can do ");
+
+  Processor::default_params("/top/cores/", params);
+}
+
 Simulation::Simulation(
     const cfg_t *cfg, bool halted, std::vector<std::pair<reg_t, mem_t *>> mems,
     std::vector<std::pair<reg_t, abstract_device_t *>> plugin_devices,
@@ -46,28 +74,15 @@ Simulation::Simulation(
     openhw::Params &params)
     : sim_t(cfg, halted, mems, plugin_devices, args, dm_config, log_path,
             dtb_enabled, dtb_file, socket_enabled, cmd_file, params) {
+
+  Simulation::default_params(this->params);
   // It seems mandatory to set cache block size for MMU.
   // FIXME TODO: Use actual cache configuration (on/off, # of ways/sets).
   // FIXME TODO: Support multiple cores.
   get_core(0)->get_mmu()->set_cache_blocksz(reg_t(64));
 
-  this->params.set("/top/", "isa", any(std::string("RV32IMC")));
-  this->params.set("/top/", "priv", any(std::string(DEFAULT_PRIV)));
-
-  this->params.set("/top/", "bootrom", std::any(true));
-  this->params.set("/top/", "bootrom_base", std::any(0x10000UL));
-  this->params.set("/top/", "bootrom_size", std::any(0x1000UL));
-
-  this->params.set("/top/", "dram", std::any(true));
-  this->params.set("/top/", "dram_base", std::any(0x00000000UL));
-  this->params.set("/top/", "dram_size", std::any(0x400000UL));
-
-  this->params.set("/top/", "log_commits", std::any(true));
-
-  this->params.set("/top/", "max_steps_enabled", std::any(false));
-  this->params.set("/top/", "max_steps", std::any(200000UL));
-
-  ParseParams("/top/", this->params, params);
+  
+  Params::parse_params("/top/", this->params, params);
 
   const std::vector<mem_cfg_t> layout;
 
@@ -76,18 +91,18 @@ Simulation::Simulation(
   for (auto &x : this->mems)
     bus.add_device(x.first, x.second);
 
-  string isa_str = std::any_cast<string>(this->params["/top/isa"]);
-  string priv_str = std::any_cast<string>(this->params["/top/priv"]);
+  string isa_str = (this->params["/top/isa"]).a_string;
+  string priv_str = (this->params["/top/priv"]).a_string;
   this->isa = isa_parser_t(isa_str.c_str(), priv_str.c_str());
 
   this->reset();
 
-  bool commitlog = std::any_cast<bool>(this->params["/top/log_commits"]);
+  bool commitlog = (this->params["/top/log_commits"]).a_bool;
   this->configure_log(commitlog, commitlog);
 
-  this->max_steps = std::any_cast<uint64_t>(this->params["/top/max_steps"]);
+  this->max_steps = (this->params["/top/max_steps"]).a_uint64_t;
   this->max_steps_enabled =
-      std::any_cast<bool>(this->params["/top/max_steps_enabled"]);
+      (this->params["/top/max_steps_enabled"]).a_bool;
 
   printf("U extension enabled = %d\n", procs[0]->extension_enabled('U'));
   printf("S extension enabled = %d\n", procs[0]->extension_enabled('S'));
@@ -122,7 +137,7 @@ int Simulation::run() {
       vspike = this->step(1, vreference);
     }
   } catch (std::ios_base::failure e) {
-    std::cout << "[SPIKE] Max steps exceed" << std::endl;
+    std::cout << "[SPIKE] Max steps exceeded!" << std::endl;
   }
   return sim_t::exit_code();
 }
@@ -131,14 +146,11 @@ void Simulation::make_mems(const std::vector<mem_cfg_t> &layout) {
   for (const auto &cfg : layout)
     mems.push_back(std::make_pair(cfg.get_base(), new mem_t(cfg.get_size())));
 
-  
-
-/*
-  bool bootrom = std::any_cast<bool>(this->params["/top/bootrom"]);
+  bool bootrom = (this->params["/top/bootrom"]).a_bool;
   uint64_t bootrom_base =
-      std::any_cast<uint64_t>(this->params["/top/bootrom_base"]);
+      (this->params["/top/bootrom_base"]).a_uint64_t;
   uint64_t bootrom_size =
-      std::any_cast<uint64_t>(this->params["/top/bootrom_size"]);
+      (this->params["/top/bootrom_size"]).a_uint64_t;
   if (bootrom) {
     auto bootrom_device = std::make_pair(bootrom_base, new mem_t(bootrom_size));
 
@@ -161,12 +173,13 @@ void Simulation::make_mems(const std::vector<mem_cfg_t> &layout) {
 
     this->mems.push_back(bootrom_device);
   }
-*/
-  bool dram = std::any_cast<bool>(this->params["/top/dram"]);
-  uint64_t dram_base = std::any_cast<uint64_t>(this->params["/top/dram_base"]);
-  uint64_t dram_size = std::any_cast<uint64_t>(this->params["/top/dram_size"]);
-  if (dram)
+
+  bool dram = (this->params["/top/dram"]).a_bool;
+  uint64_t dram_base = (this->params["/top/dram_base"]).a_uint64_t;
+  uint64_t dram_size = (this->params["/top/dram_size"]).a_uint64_t;
+  if (dram) {
     this->mems.push_back(std::make_pair(dram_base, new mem_t(dram_size)));
+  }
 
   //dbg
   this->mems.push_back(std::make_pair(0x1a110800, new mem_t(0x1000)));
@@ -178,6 +191,8 @@ void Simulation::make_mems(const std::vector<mem_cfg_t> &layout) {
 
   //CV_VP_REGISTER used in _write()
   this->mems.push_back(std::make_pair(0x00800000, new mem_t(0x10000)));
+
+  
 }
 
 std::vector<st_rvfi> Simulation::step(size_t n,

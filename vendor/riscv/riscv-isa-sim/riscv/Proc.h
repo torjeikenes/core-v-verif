@@ -17,12 +17,15 @@ public:
   bool will_trigger_interrupt(reg_t mip);
   bool interrupt(reg_t mip, uint32_t revert_steps, bool interrupt_allowed);
 
+  static void default_params(string base, openhw::Params &params);
+
   inline void set_XPR(reg_t num, reg_t value);
   inline void set_FPR(reg_t num, float128_t value);
 
 protected:
   std::deque<prev_changes_t> previous_states;
   int max_previous_states;
+  bool csr_counters_injection;
   bool taken_trap;
   uint32_t which_trap;
   reg_t next_rvfi_intr;
