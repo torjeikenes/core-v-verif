@@ -14,14 +14,14 @@
 
 #include "mmu.h"
 
-// TODO: parameterize
-#define ENABLED_IRQ_MASK 0xFFFF0888 //Enable IRQ 3, 7, 11, and 16-31 (From CV32E40S documentation) 
 
 namespace openhw {
 st_rvfi Processor::step(size_t n, st_rvfi reference) {
   st_rvfi rvfi;
   FILE *log_file = this->get_log_file();
   memset(&rvfi, 0, sizeof(st_rvfi));
+  commit_log_reg_t prev_commit_log_reg = this->get_state()->log_reg_write;
+
 
   this->taken_trap = false;
   this->which_trap = 0;
@@ -65,6 +65,8 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
   if(this->next_rvfi_intr){
     rvfi.intr = next_rvfi_intr;
     this->next_rvfi_intr = 0;
+    //Add csr changes that happened during first interrupt step
+    reg_commits.insert(prev_commit_log_reg.begin(), prev_commit_log_reg.end());
   }
 
   if(this->taken_trap) {
@@ -90,33 +92,34 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
 
   bool got_commit = false;
   for (auto &reg : reg_commits) {
-    if ((reg.first >> 4) > 32) {
-          if ((reg.first >> 4) < 0xFFF) {
-            for (size_t i = 0; i < CSR_SIZE; i++) {
-                if (!rvfi.csr_valid[i]) {
-                    rvfi.csr_valid[i] = 1;
-                    rvfi.csr_addr[i] = reg.first >> 4;
-                    rvfi.csr_wdata[i] = reg.second.v[0];
-                    rvfi.csr_wmask[i] = -1;
-                    break;
-                }
-            }
+    if((reg.first & 0xf) == 0x4) { //If CSR
+      for (size_t i = 0; i < CSR_SIZE; i++) {
+          if (!rvfi.csr_valid[i]) {
+              rvfi.csr_valid[i] = 1;
+              rvfi.csr_addr[i] = reg.first >> 4;
+              rvfi.csr_wdata[i] = reg.second.v[0];
+              rvfi.csr_wmask[i] = -1;
+              break;
           }
+      }
     }
     else {
-        // TODO FIXME Take into account the XLEN/FLEN for int/FP values.
-        rvfi.rd1_addr = reg.first >> 4;
-        rvfi.rd1_wdata = reg.second.v[0];
-        // TODO FIXME Handle multiple register commits per cycle.
-        // TODO FIXME This must be handled on the RVFI side as well.
+      // popret(z) should return rd1_addr = 0 instead of the SP to match with the cv32e40s core
+      if (((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRET) == MATCH_CM_POPRET) ||
+          ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRETZ) == MATCH_CM_POPRETZ)) {
+        got_commit = true;
+        continue;
+      }
+      if (got_commit) {
+        continue;
+      }
+      // TODO FIXME Take into account the XLEN/FLEN for int/FP values.
+      rvfi.rd1_addr = reg.first >> 4;
+      rvfi.rd1_wdata = reg.second.v[0];
+      // TODO FIXME Handle multiple register commits per cycle.
+      // TODO FIXME This must be handled on the RVFI side as well.
+      got_commit = true; // Only latch first commit
     }
-
-    // popret(z) should return rd1_addr = 0 to match with the core
-    //if (((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRET) == MATCH_CM_POPRET) ||
-    //    ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRETZ) == MATCH_CM_POPRETZ)) {
-    //  got_commit = true;
-    //  continue;
-    //}
     
   }
 
@@ -191,7 +194,7 @@ void Processor::revert_step(int num_steps) {
 
 
 
-  fprintf(log_file, "revert from PC: %x", this->state.pc);
+  fprintf(log_file, "revert %d steps from PC: %x", num_steps, this->state.pc);
 
   prev_changes_t prev_changes = previous_states[num_steps];
   this->state = std::get<0>(prev_changes);
@@ -227,8 +230,11 @@ void Processor::revert_step(int num_steps) {
     }
   }
 
-  //Clear write commit log to discard the writes generated above
+  //Clear commit logs since they contain information from the reverted steps
   this->get_state()->log_mem_write.clear();
+  this->get_state()->log_reg_write.clear();
+  this->get_state()->log_mem_read.clear();
+  this->get_state()->log_mem_pre_write.clear();
 }
 
 bool Processor::will_trigger_interrupt(reg_t mip) {
@@ -258,6 +264,7 @@ bool Processor::will_trigger_interrupt(reg_t mip) {
 bool Processor::interrupt(reg_t mip, uint32_t revert_steps, bool interrupt_allowed) {
   state_t *state = this->get_state();
 
+  reg_t mask = (1ULL << isa->get_max_xlen()) - 1;
 
   st_rvfi vref; //Passed to step, but not used
 
@@ -268,17 +275,16 @@ bool Processor::interrupt(reg_t mip, uint32_t revert_steps, bool interrupt_allow
 
     this->revert_step(revert_steps);
 
-    state->mip->write_with_mask(ENABLED_IRQ_MASK, mip);
+    state->mip->write_with_mask(mask, mip);
 
     // This step only sets the correct state for the interrupt, but does not actually execute an instruction
     // Another step needs to be taken to actually step through the instruction
     // Therefore we discard the rvfi values returned from this step
     this->step(1, vref);
-    fprintf(this->get_log_file(), "mip %lx set to %lx\n", mip, mip & ENABLED_IRQ_MASK);
 
     return true;
   } else {
-    state->mip->write_with_mask(ENABLED_IRQ_MASK, mip);
+    state->mip->write_with_mask(mask, mip);
     return false;
   }
  

@@ -54,7 +54,7 @@ extern "C" void spike_set_default_params(const char *profile) {
   else if (strcmp(profile, "cv32e40s") == 0)
   {
     params.set_string("/top/", "isa", std::string("RV32I"));
-    params.set_string("/top/", "priv", std::string(DEFAULT_PRIV)); // MSU
+    params.set_string("/top/", "priv", std::string("MU"));
     params.set_uint64_t("/top/", "num_procs", 0x1UL);
     params.set_bool("/top/", "bootrom", false);
     params.set_bool("/top/", "generic_core_config", true);
