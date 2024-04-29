@@ -15,7 +15,7 @@ public:
   st_rvfi step(size_t n, st_rvfi reference);
   void revert_step(int num_steps);
   bool will_trigger_interrupt(reg_t mip);
-  bool interrupt(reg_t mip, uint32_t revert_steps, bool interrupt_allowed);
+  bool interrupt(reg_t mip, reg_t mie, uint32_t revert_steps, bool interrupt_allowed);
 
   static void default_params(string base, openhw::Params &params);
 

@@ -221,8 +221,8 @@ std::vector<st_rvfi> Simulation::step(size_t n,
 }
 
 
-bool Simulation::interrupt(reg_t mip, uint32_t revert_steps, bool interrupt_allowed) {
-  return ((Processor *)procs[0])->interrupt(mip, revert_steps, interrupt_allowed);
+bool Simulation::interrupt(reg_t mip, reg_t mie, uint32_t revert_steps, bool interrupt_allowed) {
+  return ((Processor *)procs[0])->interrupt(mip, mie, revert_steps, interrupt_allowed);
 }
 
 void Simulation::revert_state(int num_steps) {

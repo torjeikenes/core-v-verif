@@ -261,7 +261,7 @@ bool Processor::will_trigger_interrupt(reg_t mip) {
   }
 }
 
-bool Processor::interrupt(reg_t mip, uint32_t revert_steps, bool interrupt_allowed) {
+bool Processor::interrupt(reg_t mip, reg_t mie, uint32_t revert_steps, bool interrupt_allowed) {
   state_t *state = this->get_state();
 
   reg_t mask = (1ULL << isa->get_max_xlen()) - 1;
@@ -269,6 +269,8 @@ bool Processor::interrupt(reg_t mip, uint32_t revert_steps, bool interrupt_allow
   st_rvfi vref; //Passed to step, but not used
 
   this->interrupt_allowed = interrupt_allowed;
+
+  state->mie->write_with_mask(mask, mie);
 
   if(interrupt_allowed && will_trigger_interrupt(mip)) {
     fprintf(this->get_log_file(), "interrupt mip %lx\n", mip);

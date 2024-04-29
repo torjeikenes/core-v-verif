@@ -67,7 +67,7 @@ public:
    * * @param interrupt_allowed: True if interrupt is allowed to be taken 
    * * @return:  True if interrupt will be taken, false if not
    * */
-  bool interrupt(reg_t mask, uint32_t revert_steps, bool interrupt_allowed);
+  bool interrupt(reg_t mask, reg_t mie, uint32_t revert_steps, bool interrupt_allowed);
 
   /*
    * Revert the state  

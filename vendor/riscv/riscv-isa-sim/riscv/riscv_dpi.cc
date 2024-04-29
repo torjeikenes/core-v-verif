@@ -204,9 +204,9 @@ extern "C" void spike_step_svLogic(svLogicVecVal* reference,
   rvfi2sv(spike_rvfi, spike);
 }
 
-extern "C" bool spike_interrupt(uint32_t mip, uint32_t revert_steps, bool interrupt_allowed)
+extern "C" bool spike_interrupt(uint32_t mip, uint32_t mie, uint32_t revert_steps, bool interrupt_allowed)
 {
-  return sim->interrupt(mip, revert_steps, interrupt_allowed);
+  return sim->interrupt(mip, mie, revert_steps, interrupt_allowed);
 }
 
 extern "C" void spike_revert_state(int num_steps)
