@@ -89,7 +89,7 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
   }
 
   rvfi.cause = this->which_trap;
-
+  uint64_t rd2_wdata = 0;
   bool got_commit = false;
   for (auto &reg : reg_commits) {
     if((reg.first & 0xf) == 0x4) { //If CSR
@@ -111,6 +111,7 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
         continue;
       }
       if (got_commit) {
+        rd2_wdata = reg.second.v[0];
         continue;
       }
       // TODO FIXME Take into account the XLEN/FLEN for int/FP values.
@@ -123,13 +124,17 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
     
   }
 
-  bool mem_access = false;
+  bool mem_access = false; // TODO: support multiple memory writes/reads
   int read_len;
   for (auto &mem : mem_read_commits) {
     //mem format: (addr, 0, size) (value is not stored for reads, but should be the same as rd)
     if(!mem_access) {
       rvfi.mem_addr = std::get<0>(mem);
-      rvfi.mem_rdata = rvfi.rd1_wdata; 
+      if ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POP) == MATCH_CM_POP){    
+        rvfi.mem_rdata = rd2_wdata; // During pop, rd1 returns sp, so instead return value read from memory (rd2)
+      } else {
+        rvfi.mem_rdata = rvfi.rd1_wdata; 
+      }
       //mem_rmask should hold a bitmask of which bytes in mem_rdata contain valid data
       read_len = std::get<2>(mem);
       rvfi.mem_rmask = (1 << read_len) - 1;
@@ -210,7 +215,6 @@ void Processor::revert_step(int num_steps) {
 
     for (auto mem_write : log_mem_pre_write) {
       fprintf(log_file, "revert mem: addr: %x val: %x size: %x", std::get<0>(mem_write), std::get<1>(mem_write), std::get<2>(mem_write));
-      printf("revert\n");
       switch (std::get<2>(mem_write))
       {
       case 1:
