@@ -653,7 +653,7 @@ void processor_t::take_interrupt(reg_t pending_interrupts)
 
   // M-ints have higher priority over HS-ints and VS-ints
   const reg_t mie = get_field(state.mstatus->read(), MSTATUS_MIE);
-  const reg_t m_enabled = state.prv < PRV_M || (state.prv == PRV_M && mie);
+  const reg_t m_enabled = state.prv < PRV_M || (state.prv == PRV_M && mie && interrupt_allowed);
   reg_t enabled_interrupts = pending_interrupts & ~state.mideleg->read() & -m_enabled;
   if (enabled_interrupts == 0) {
     // HS-ints have higher priority over VS-ints

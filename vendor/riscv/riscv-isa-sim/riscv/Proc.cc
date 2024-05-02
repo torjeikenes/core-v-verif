@@ -271,7 +271,7 @@ bool Processor::will_trigger_interrupt(reg_t mip) {
 bool Processor::interrupt(reg_t mip, reg_t mie, uint32_t revert_steps, bool interrupt_allowed) {
   state_t *state = this->get_state();
 
-  reg_t mask = (1ULL << isa->get_max_xlen()) - 1;
+  reg_t mask = 0xFFFF0888; // TODO: automatically generate this
 
   st_rvfi vref; //Passed to step, but not used
 
