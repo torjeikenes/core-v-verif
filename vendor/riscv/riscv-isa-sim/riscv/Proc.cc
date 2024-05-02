@@ -30,6 +30,10 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
   state_t prev_state = *this->get_state();
 
   rvfi.pc_rdata = this->get_state()->pc; // Current PC
+
+  // Disable WFI to handle the timing outside of spike.
+  in_wfi = false;
+
   processor_t::step(n);
 
   // Add overwritten values from memory writes during the step
