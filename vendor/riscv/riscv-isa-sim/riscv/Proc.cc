@@ -89,7 +89,8 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
   }
 
   rvfi.cause = this->which_trap;
-  uint64_t rd2_wdata = 0;
+  uint64_t last_rd_addr = 0;
+  uint64_t last_rd_wdata = 0;
   bool got_commit = false;
   for (auto &reg : reg_commits) {
     if((reg.first & 0xf) == 0x4) { //If CSR
@@ -104,14 +105,9 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
       }
     }
     else {
-      // popret(z) should return rd1_addr = 0 instead of the SP to match with the cv32e40s core
-      if (((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRET) == MATCH_CM_POPRET) ||
-          ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRETZ) == MATCH_CM_POPRETZ)) {
-        got_commit = true;
-        continue;
-      }
       if (got_commit) {
-        rd2_wdata = reg.second.v[0];
+        last_rd_addr = reg.first >> 4;
+        last_rd_wdata = reg.second.v[0];
         continue;
       }
       // TODO FIXME Take into account the XLEN/FLEN for int/FP values.
@@ -121,7 +117,12 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
       // TODO FIXME This must be handled on the RVFI side as well.
       got_commit = true; // Only latch first commit
     }
-    
+  }
+  // popret(z) should return rd1_addr = 0 instead of the SP to match with the cv32e40s core
+  if (((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRET) == MATCH_CM_POPRET) ||
+      ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRETZ) == MATCH_CM_POPRETZ)) {
+    rvfi.rd1_addr = 0;
+    rvfi.rd1_wdata = 0;
   }
 
   bool mem_access = false; // TODO: support multiple memory writes/reads
@@ -130,8 +131,10 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
     //mem format: (addr, 0, size) (value is not stored for reads, but should be the same as rd)
     if(!mem_access) {
       rvfi.mem_addr = std::get<0>(mem);
-      if ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POP) == MATCH_CM_POP){    
-        rvfi.mem_rdata = rd2_wdata; // During pop, rd1 returns sp, so instead return value read from memory (rd2)
+      if ((this->get_state()->last_inst_fetched.bits() & MASK_CM_POP) == MATCH_CM_POP         ||
+          (this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRET) == MATCH_CM_POPRET   ||
+          (this->get_state()->last_inst_fetched.bits() & MASK_CM_POPRETZ) == MATCH_CM_POPRETZ ){    
+        rvfi.mem_rdata = last_rd_wdata; // During pop, rd1 returns sp, so instead return value read from memory 
       } else {
         rvfi.mem_rdata = rvfi.rd1_wdata; 
       }
