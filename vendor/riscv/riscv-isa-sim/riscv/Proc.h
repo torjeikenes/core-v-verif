@@ -16,6 +16,7 @@ public:
   void revert_step(int num_steps);
   bool will_trigger_interrupt(reg_t mip);
   bool interrupt(reg_t mip, reg_t mie, uint32_t revert_steps, bool interrupt_allowed);
+  bool set_debug(bool debug_req, uint32_t revert_steps, bool debug_allowed);
 
   static void default_params(string base, openhw::Params &params);
 
@@ -28,7 +29,7 @@ protected:
   bool csr_counters_injection;
   bool taken_trap;
   uint32_t which_trap;
-  reg_t next_rvfi_intr;
+  reg_t next_rvfi_intr, next_debug;
   virtual void take_trap(trap_t &t, reg_t epc); // take an exception
 };
 

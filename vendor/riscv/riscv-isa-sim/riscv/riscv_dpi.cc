@@ -209,6 +209,11 @@ extern "C" bool spike_interrupt(uint32_t mip, uint32_t mie, uint32_t revert_step
   return sim->interrupt(mip, mie, revert_steps, interrupt_allowed);
 }
 
+extern "C" bool spike_set_debug(bool debug_req, uint32_t revert_steps, bool debug_allowed)
+{
+  return sim->set_debug_req(debug_req, revert_steps, debug_allowed);
+}
+
 extern "C" void spike_revert_state(int num_steps)
 {
   sim->revert_state(num_steps);

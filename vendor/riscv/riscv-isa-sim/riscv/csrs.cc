@@ -1242,9 +1242,10 @@ reg_t dcsr_csr_t::read() const noexcept {
   v = set_field(v, DCSR_EBREAKH, ebreakh);
   v = set_field(v, DCSR_EBREAKS, ebreaks);
   v = set_field(v, DCSR_EBREAKU, ebreaku);
-  v = set_field(v, DCSR_STOPCYCLE, 0);
+  v = set_field(v, DCSR_STOPCYCLE, 1); //TODO: Make configurable
   v = set_field(v, DCSR_STOPTIME, 0);
   v = set_field(v, DCSR_CAUSE, cause);
+  v = set_field(v, DCSR_MPRVEN, 1); // TODO: Make configurable
   v = set_field(v, DCSR_STEP, step);
   v = set_field(v, DCSR_PRV, prv);
   return v;

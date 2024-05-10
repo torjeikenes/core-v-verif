@@ -69,6 +69,8 @@ public:
    * */
   bool interrupt(reg_t mask, reg_t mie, uint32_t revert_steps, bool interrupt_allowed);
 
+  bool set_debug_req(bool debug_req, uint32_t revert_steps, bool debug_allowed);
+
   /*
    * Revert the state  
    * *

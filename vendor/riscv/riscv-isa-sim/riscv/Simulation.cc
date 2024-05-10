@@ -225,6 +225,10 @@ bool Simulation::interrupt(reg_t mip, reg_t mie, uint32_t revert_steps, bool int
   return ((Processor *)procs[0])->interrupt(mip, mie, revert_steps, interrupt_allowed);
 }
 
+bool Simulation::set_debug_req(bool debug_req, uint32_t revert_steps, bool debug_allowed) {
+  return ((Processor *)procs[0])->set_debug(debug_req, revert_steps, debug_allowed);
+}
+
 void Simulation::revert_state(int num_steps) {
   ((Processor *)procs[0])->revert_step(num_steps);
 }

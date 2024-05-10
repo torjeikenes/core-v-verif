@@ -339,6 +339,7 @@ void processor_t::step(size_t n)
     catch(trap_debug_mode&)
     {
       enter_debug_mode(DCSR_CAUSE_SWBP);
+      instret++; // Count the EBREAK instruction as executed to return rvfi for the instruction
     }
     catch (wait_for_interrupt_t &t)
     {

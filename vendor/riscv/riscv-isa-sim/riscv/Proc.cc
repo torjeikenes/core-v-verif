@@ -29,12 +29,13 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
   // Store the state before stepping
   state_t prev_state = *this->get_state();
 
-  rvfi.pc_rdata = this->get_state()->pc; // Current PC
 
   // Disable WFI to handle the timing outside of spike.
   in_wfi = false;
 
   processor_t::step(n);
+
+  rvfi.pc_rdata = this->last_pc;
 
   // Add overwritten values from memory writes during the step
   prev_changes_t prev_changes(prev_state, this->get_state()->log_mem_pre_write);
@@ -63,8 +64,6 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
   rvfi.rs2_addr = this->get_state()->last_inst_fetched.rs2();
   // TODO add rs2_value
 
-  //rvfi.trap = this->taken_trap;
-  //rvfi.trap |= (this->which_trap << 1);
 
   if(this->next_rvfi_intr){
     rvfi.intr = next_rvfi_intr;
@@ -72,6 +71,38 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
     //Add csr changes that happened during first interrupt step
     reg_commits.insert(prev_commit_log_reg.begin(), prev_commit_log_reg.end());
   }
+  
+  // Output dbg caused from EBREAK the previous instruction
+  if(this->next_debug) {
+    rvfi.dbg = this->next_debug;
+    this->next_debug = 0;
+  }
+
+  if(this->state.debug_mode  && (prev_state.debug_mode == 0)){
+    // New external debug request
+    if((this->halt_request != HR_NONE)){ 
+      rvfi.dbg = this->get_state()->dcsr->cause;
+      rvfi.dbg_mode = 1;
+
+    // EBREAK
+    } else if(this->get_state()->dcsr->cause == DCSR_CAUSE_SWBP) {
+      // EBREAK will set debug_mode to 1, but we should report this at the next instruction
+      rvfi.trap |= 1 << 0; //trap [0]
+      rvfi.trap |= 1 << 2; //debug [2]
+      rvfi.trap |= 0xE00 & ((DCSR_CAUSE_SWBP) << 9); //debug cause [11:9]
+      
+      this->next_debug = DCSR_CAUSE_SWBP;
+    }
+  }
+
+  // Set dbg_mode to 1 the first instruction in debug mode, but delay turning 
+  // off dbg_mode to the next instruction after turning off to keep dbg_mode on for dret
+  if( (this->halt_request != HR_NONE)  && (prev_state.debug_mode == 0)) {
+    rvfi.dbg_mode = 1;
+  } else {
+    rvfi.dbg_mode = prev_state.debug_mode;
+  }
+
 
   if(this->taken_trap) {
     //interrrupts are marked with the msb high in which_trap
@@ -81,7 +112,7 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
       this->next_rvfi_intr |= 1 << 2; //interrupt [2]
       this->next_rvfi_intr |= 0x3FF8 & ((this->which_trap & 0xFF) << 3); //cause[13:3]
     } else{
-      rvfi.trap |= 1 << 0; //intr [0]
+      rvfi.trap |= 1 << 0; //trap [0]
       rvfi.trap |= 1 << 1; //exception [1]
       rvfi.trap |= 0x1F8 & ((this->which_trap) << 3); //exception_cause [8:3]
       //TODO:
@@ -258,7 +289,7 @@ bool Processor::will_trigger_interrupt(reg_t mip) {
   uint32_t new_en_irq = mip & mie;
 
 
-  // Only take interrupt if interrupt is enabled, not in debug mode, not halted, 
+  // Only take interrupt if interrupt is enabled, not in debug mode, does not have a halt request, 
   // and the interrupt is new and not zero
   if( get_field(mstatus, MSTATUS_MIE) &&
       !state->debug_mode  &&
@@ -303,7 +334,31 @@ bool Processor::interrupt(reg_t mip, reg_t mie, uint32_t revert_steps, bool inte
  
 }
 
+bool Processor::set_debug(bool debug_req, uint32_t revert_steps, bool debug_allowed){
+  fprintf(log_file, "debug req %x steps %ld\n", debug_req, revert_steps);
+  bool debug_taken = false; 
 
+  // NOTE: This is a workaround to allow the new debug to take over while the ebreak is still in the pipeline
+  // If a new debug request is made while debug is allowed and a ebreak caused debug is active, disable debug mode to take the new debug.
+  // When the ebread retires from the pipeline shell, debug_allowed will be 0, so this will only happen while the ebreak is still in the pipeline
+  if(debug_req && debug_allowed && (this->state.dcsr->cause == DCSR_CAUSE_SWBP)) {
+    this->state.debug_mode = 0; // Set debug mode to 0, to allow external debug to overwrite potetial ebreak caused debug
+  }
+
+  if(!(this->state.debug_mode) && debug_req && debug_allowed && (this->halt_request == HR_NONE)){
+    this->halt_request = HR_REGULAR;
+    debug_taken = true;
+  } else if (this->state.debug_mode) {
+    this->halt_request = HR_NONE;
+  }
+  
+
+  if(debug_taken) {
+    this->revert_step(revert_steps);
+  }
+
+  return debug_taken;
+}
 
 
 Processor::Processor(
