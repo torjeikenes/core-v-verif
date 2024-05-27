@@ -123,7 +123,6 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
     }
   }
 
-  rvfi.cause = this->which_trap;
   uint64_t last_rd_addr = 0;
   uint64_t last_rd_wdata = 0;
   bool got_commit = false;
