@@ -441,7 +441,6 @@ Processor::Processor(
   this->state.csrmap[CSR_MARCHID] =
       std::make_shared<const_csr_t>(this, CSR_MHARTID, (this->params[base + "marchid"]).a_uint64_t);
 
-  this->state.csrmap[CSR_MISA] = std::make_shared<misa_csr_t>(this, CSR_MISA, 0x40901104); //TODO: Make variable
 
   bool fs_field_we_enable = (this->params[base + "status_fs_field_we_enable"]).a_bool;
   bool fs_field_we = (this->params[base + "status_fs_field_we"]).a_bool;
