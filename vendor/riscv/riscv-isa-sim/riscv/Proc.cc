@@ -375,6 +375,12 @@ Processor::Processor(
   Params::parse_params(base, this->params, params);
 
   string isa_str = this->params[base + "isa"].a_string;
+
+  // Add _xdummy to enable bit 23 in MISA if non standard extensions are used
+  if( (this->params[base+"nonstd_ext"]).a_bool) {
+    isa_str = isa_str + "_xdummy";
+  }
+
   string priv_str = this->params[base + "priv"].a_string;
   std::cout << "[SPIKE] Proc 0 | ISA: " << isa_str << " PRIV: " << priv_str << std::endl;
   this->isa =
