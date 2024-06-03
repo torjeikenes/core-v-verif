@@ -178,6 +178,7 @@ void Simulation::make_mems(const std::vector<mem_cfg_t> &layout) {
   uint64_t dram_base = (this->params["/top/dram_base"]).a_uint64_t;
   uint64_t dram_size = (this->params["/top/dram_size"]).a_uint64_t;
   if (dram) {
+    printf("dram base %lx size %lx\n", dram_base, dram_size);
     this->mems.push_back(std::make_pair(dram_base, new mem_t(dram_size)));
   }
 

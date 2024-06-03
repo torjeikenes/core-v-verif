@@ -334,7 +334,6 @@ bool Processor::interrupt(reg_t mip, reg_t mie, uint32_t revert_steps, bool inte
 }
 
 bool Processor::set_debug(bool debug_req, uint32_t revert_steps, bool debug_allowed){
-  fprintf(log_file, "debug req %x steps %ld\n", debug_req, revert_steps);
   bool debug_taken = false; 
 
   // NOTE: This is a workaround to allow the new debug to take over while the ebreak is still in the pipeline
