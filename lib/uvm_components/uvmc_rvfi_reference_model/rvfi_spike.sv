@@ -46,6 +46,8 @@ import "DPI-C" function void spike_step_struct(inout st_rvfi core, inout st_rvfi
             void'(spike_set_param_str("/top/core/0/", "extensions", "cv32a60x"));
         end
 
+        void'(spike_set_param_bool(base, "nonstd_ext", core_cfg.ext_nonstd_supported));
+
         void'(spike_set_default_params(core_name));
 
         void'(spike_set_param_uint64_t("/top/", "num_procs", 64'h1));
@@ -60,10 +62,18 @@ import "DPI-C" function void spike_step_struct(inout st_rvfi core, inout st_rvfi
             void'(spike_set_param_uint64_t(base, "boot_addr", core_cfg.boot_addr));
         end
 
-        void'(spike_set_param_uint64_t(base, "pmpregions", core_cfg.pmp_regions));
-        void'(spike_set_param_uint64_t(base, "mhartid", core_cfg.mhartid));
-        void'(spike_set_param_uint64_t(base, "marchid", core_cfg.marchid));
-        void'(spike_set_param_uint64_t(base, "mvendorid", core_cfg.mvendorid));
+        if( core_cfg.pmp_supported) begin
+            void'(spike_set_param_uint64_t(base, "pmpregions", core_cfg.pmp_regions));
+        end
+        if(core_cfg.mhartid_plusarg_valid) begin
+            void'(spike_set_param_uint64_t(base, "mhartid", core_cfg.mhartid));
+        end
+        if(core_cfg.marchid_plusarg_valid) begin 
+            void'(spike_set_param_uint64_t(base, "marchid", core_cfg.marchid));
+        end
+        if(core_cfg.mvendorid_plusarg_valid) begin
+            void'(spike_set_param_uint64_t(base, "mvendorid", core_cfg.mvendorid));
+        end
         void'(spike_set_param_bool(base, "misaligned", core_cfg.unaligned_access_supported));
 
         void'(spike_set_param_bool(base, "csr_counters_injection", 1'h1));

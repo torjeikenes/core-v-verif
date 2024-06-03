@@ -709,10 +709,14 @@ typedef struct packed {
    bit                          ext_zbr_supported;
    bit                          ext_zbs_supported;
    bit                          ext_zbt_supported;
+   bit                          ext_zca_supported;
    bit                          ext_zcb_supported;
+   bit                          ext_zcmp_supported;
+   bit                          ext_zcmt_supported;
    bit                          ext_zifencei_supported;
    bit                          ext_zicsr_supported;
    bit                          ext_zicntr_supported;
+   bit                          ext_nonstd_supported;
 
    bit                          ext_cv32a60x_supported;
 

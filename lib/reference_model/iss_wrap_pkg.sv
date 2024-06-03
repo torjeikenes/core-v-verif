@@ -22,15 +22,8 @@
 package iss_wrap_pkg;
 
 import uvma_rvfi_pkg::*;
-
-import "DPI-C" function int spike_create(string filename);
-
-import "DPI-C" function void spike_set_param_uint64_t(string base, string name, longint unsigned value);
-import "DPI-C" function void spike_set_param_str(string base, string name, string value);
-import "DPI-C" function void spike_set_default_params(string profile);
-
-import "DPI-C" function void spike_step_svLogic(inout vector_rvfi core, inout vector_rvfi reference_model);
-import "DPI-C" function void spike_step_struct(inout st_rvfi core, inout st_rvfi reference_model);
+import uvma_core_cntrl_pkg::*;
+import uvmc_rvfi_reference_model_pkg::*;
 
 import "DPI-C" function bit  spike_interrupt(int unsigned mip, int unsigned mie, int unsigned revert_steps, bit interrupt_allowed);
 import "DPI-C" function void spike_revert_state(int num_steps);
@@ -38,41 +31,14 @@ import "DPI-C" function void spike_revert_state(int num_steps);
 import "DPI-C" function bit spike_set_debug(bit debug_req, int unsigned revert_steps, bit debug_allowed);
 
 
-    function automatic void iss_init(string binary);
-
-        string rtl_isa;
-        string rtl_priv;
-
-        rtl_isa = "rv32imc_zicsr_zifencei_zca_zcb_zcmp_zcmt_zba_zbb_zbc_zbs";
-        rtl_priv = "MU";
-
-        // CV32E40S hardcodes MISA bit 23(non-standard extension) to 1
-        // We add "xdummy" so spike also enables bit 23 of MISA
-        rtl_isa = {rtl_isa, "_xdummy"};
-
-        //spike_init(binary);
-        void'(spike_set_default_params("cv32e40s"));
-        void'(spike_set_param_uint64_t("/top/core/0/", "boot_addr", 'h00000080));
-        void'(spike_set_param_str("/top/", "isa", rtl_isa));
-        void'(spike_set_param_str("/top/", "priv", rtl_priv));
-        void'(spike_set_param_str("/top/core/0/", "isa", rtl_isa));
-        void'(spike_set_param_str("/top/core/0/", "priv", rtl_priv));
-        void'(spike_create(binary));
+    function automatic void iss_init(string core_name, st_core_cntrl_cfg core_cfg);
+        rvfi_initialize_spike(core_name, core_cfg);
     endfunction
 
     function automatic st_rvfi iss_step();
-        union_rvfi u_core;
-        union_rvfi u_reference_model;
-        bit [0:ST_NUM_WORDS-1][63:0] a_core;
-        bit [0:ST_NUM_WORDS-1][63:0] a_reference_model;
-
-        spike_step_svLogic(a_core, a_reference_model);
-
-        foreach(a_reference_model[i]) begin
-            u_reference_model.array[i] = a_reference_model[ST_NUM_WORDS-1-i];
-        end
-
-        return u_reference_model.rvfi;
+        st_rvfi core,rm;
+        rvfi_spike_step(core, rm);
+        return rm;
 
     endfunction
 

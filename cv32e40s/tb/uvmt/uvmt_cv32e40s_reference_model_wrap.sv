@@ -28,18 +28,23 @@
 
 `define CORE_I `DUT_PATH.core_i
 
+`ifdef USE_RM
 module uvmt_cv32e40s_reference_model_wrap
   import uvm_pkg::*;
   import cv32e40s_pkg::*;
   import uvmt_cv32e40s_base_test_pkg::*;
   import uvme_cv32e40s_pkg::*;
   import uvma_rvfi_pkg::*;
+  import uvma_core_cntrl_pkg::*;
+  import uvmc_rvfi_reference_model_pkg::*;
+  import iss_wrap_pkg::*;
   ();
 
     uvma_clknrst_if_t clknrst_if_rm();
     rvfi_if_t rvfi_rm();
     rvfi_if_t rvfi_core();
     int clock_cnt;
+    st_core_cntrl_cfg st;
 
     reference_model reference_model_i(
        .clknrst_if(clknrst_if_rm),
@@ -73,6 +78,12 @@ module uvmt_cv32e40s_reference_model_wrap
      else begin
       `uvm_info(info_tag, $sformatf("Found UVM environment configuration handle:\n%s", uvm_env_cfg.sprint()), UVM_DEBUG)
      end
+
+     st = uvm_env_cfg.to_struct();
+     st.dram_valid = 1'b0; // ram set inside spike
+
+     //rvfi_initialize_spike("cv32e40s", st);
+     iss_init("cv32e40s", st);
 
      fd = $fopen("reference_model.log", "w");
      pl = $fopen("pipeline.log", "w");
@@ -190,5 +201,6 @@ module uvmt_cv32e40s_reference_model_wrap
 
 
 endmodule : uvmt_cv32e40s_reference_model_wrap
+`endif
 
 `endif // __UVMT_CV32E40S_REFERENCE_MODEL_WRAP_SV__

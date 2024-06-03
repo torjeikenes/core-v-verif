@@ -33,16 +33,7 @@ module reference_model
 
     string binary;
 
-    initial begin
-        @(clknrst_if.clk);
-        if ($value$plusargs("elf_file=%s", binary))
-            $display("Setting up ISS with binary %s...", binary);
-        
-        iss_init(binary);
-
-        $display("Reference Model: Starting");
-    end
-
+       
     pipeline_shell pipeline_shell_i(
         .clknrst_if(clknrst_if),
         .rvfi_i(rvfi_i),

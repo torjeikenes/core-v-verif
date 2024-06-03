@@ -27,9 +27,14 @@
         if (core_cfg.ext_zbb_supported)     rtl_isa = {rtl_isa, "_zbb"};
         if (core_cfg.ext_zbc_supported)     rtl_isa = {rtl_isa, "_zbc"};
         if (core_cfg.ext_zbs_supported)     rtl_isa = {rtl_isa, "_zbs"};
+        if (core_cfg.ext_zca_supported)     rtl_isa = {rtl_isa, "_zca"};
         if (core_cfg.ext_zcb_supported)     rtl_isa = {rtl_isa, "_zcb"};
+        if (core_cfg.ext_zcmp_supported)     rtl_isa = {rtl_isa, "_zcmp"};
+        if (core_cfg.ext_zcmt_supported)     rtl_isa = {rtl_isa, "_zcmt"};
         if (core_cfg.ext_zicsr_supported)     rtl_isa = {rtl_isa, "_zicsr"};
         if (core_cfg.ext_zicntr_supported)     rtl_isa = {rtl_isa, "_zicntr"};
+        if (core_cfg.ext_zifencei_supported)     rtl_isa = {rtl_isa, "_zifencei"};
+
 
         return rtl_isa;
 
