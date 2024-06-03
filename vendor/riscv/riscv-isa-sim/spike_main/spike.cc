@@ -626,11 +626,11 @@ int main(int argc, char** argv)
           cmd_file, params);
   s.standalone_mode = 1;
   std::unique_ptr<remote_bitbang_t> remote_bitbang((remote_bitbang_t *) NULL);
-  //std::unique_ptr<jtag_dtm_t> jtag_dtm(
-  //    new jtag_dtm_t(&s.debug_module, dmi_rti));
+  std::unique_ptr<jtag_dtm_t> jtag_dtm(
+      new jtag_dtm_t(&s.debug_module, dmi_rti));
   if (use_rbb) {
-    //remote_bitbang.reset(new remote_bitbang_t(rbb_port, &(*jtag_dtm)));
-    //s.set_remote_bitbang(&(*remote_bitbang));
+    remote_bitbang.reset(new remote_bitbang_t(rbb_port, &(*jtag_dtm)));
+    s.set_remote_bitbang(&(*remote_bitbang));
   }
 
   if (dump_dts) {

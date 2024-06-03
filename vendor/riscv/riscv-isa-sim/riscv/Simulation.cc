@@ -15,7 +15,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-
 using namespace openhw;
 
 std::vector<std::pair<reg_t, abstract_device_t *>> plugin_devs;
@@ -53,6 +52,18 @@ void Simulation::default_params(openhw::Params &params) {
   params.set_uint64_t("/top/", "dram_size", 0x400UL * 1024 * 1024,
              "0x40000000", "DRAM size");
 
+  params.set_bool("/top/", "dbg", false, "false", "DBG enable");
+  params.set_uint64_t("/top/", "dbg_base", 0x1a110800UL,
+             "0x80000000", "DBG base address");
+  params.set_uint64_t("/top/", "dbg_size", 0x1000UL,
+             "0x40000000", "DBG size");
+
+  params.set_bool("/top/", "vp", false, "false", "Virtual peripherals enable");
+  params.set_uint64_t("/top/", "vp_base", 0x00800000UL,
+             "0x80000000", "VP base address");
+  params.set_uint64_t("/top/", "vp_size", 0x1000UL,
+             "0x40000000", "VP size");
+
   params.set_bool("/top/", "log_commits", true, "True",
              "Log commit enable");
 
@@ -60,6 +71,9 @@ void Simulation::default_params(openhw::Params &params) {
              "Maximum steps enable");
   params.set_uint64_t("/top/", "max_steps", 200000UL, "200000",
              "Maximum steps that the simulation can do ");
+
+  params.set_bool("/top/", "dtb_enabled", true, "True",
+             "dtb_enabled");
 
   Processor::default_params("/top/cores/", params);
 }
@@ -80,7 +94,6 @@ Simulation::Simulation(
   // FIXME TODO: Use actual cache configuration (on/off, # of ways/sets).
   // FIXME TODO: Support multiple cores.
   get_core(0)->get_mmu()->set_cache_blocksz(reg_t(64));
-
   
   Params::parse_params("/top/", this->params, params);
 
@@ -104,9 +117,6 @@ Simulation::Simulation(
   this->max_steps_enabled =
       (this->params["/top/max_steps_enabled"]).a_bool;
 
-  printf("U extension enabled = %d\n", procs[0]->extension_enabled('U'));
-  printf("S extension enabled = %d\n", procs[0]->extension_enabled('S'));
-
   target.init(sim_thread_main, this);
   host = context_t::current();
   target.switch_to(); // To get the first point
@@ -120,7 +130,7 @@ Simulation::Simulation(const cfg_t *cfg, string elf_path,
                  plugin_devs, std::vector<std::string>() = {elf_path},
                  dm_config,
                  "tandem.log", // log_path
-                 false,        // dtb_enabled
+                 (params["/top/dtb_enabled"]).a_bool, // dtb_enabled
                  nullptr,      // dtb_file
                  false,        // socket_enabled
                  NULL,         // cmd_file
@@ -178,20 +188,25 @@ void Simulation::make_mems(const std::vector<mem_cfg_t> &layout) {
   uint64_t dram_base = (this->params["/top/dram_base"]).a_uint64_t;
   uint64_t dram_size = (this->params["/top/dram_size"]).a_uint64_t;
   if (dram) {
-    printf("dram base %lx size %lx\n", dram_base, dram_size);
     this->mems.push_back(std::make_pair(dram_base, new mem_t(dram_size)));
   }
 
   //dbg
-  this->mems.push_back(std::make_pair(0x1a110800, new mem_t(0x1000)));
+  bool dbg = (this->params["/top/dbg"]).a_bool;
+  uint64_t dbg_base = (this->params["/top/dbg_base"]).a_uint64_t;
+  uint64_t dbg_size = (this->params["/top/dbg_size"]).a_uint64_t;
+  if (dbg){
+    this->mems.push_back(std::make_pair(dbg_base, new mem_t(dbg_size)));
+  }
 
-  //stdout?
-  this->mems.push_back(std::make_pair(0x10000000, new mem_t(0x1000)));
-  //mmram?
-  this->mems.push_back(std::make_pair(0x20000000, new mem_t(0x1000)));
 
-  //CV_VP_REGISTER used in _write()
-  this->mems.push_back(std::make_pair(0x00800000, new mem_t(0x10000)));
+  //CV_VP_REGISTER 
+  bool vp = (this->params["/top/vp"]).a_bool;
+  uint64_t vp_base = (this->params["/top/vp_base"]).a_uint64_t;
+  uint64_t vp_size = (this->params["/top/vp_size"]).a_uint64_t;
+  if (vp) {
+    this->mems.push_back(std::make_pair(vp_base, new mem_t(vp_size)));
+  }
 
   
 }

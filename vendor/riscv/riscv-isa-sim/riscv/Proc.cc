@@ -39,12 +39,12 @@ st_rvfi Processor::step(size_t n, st_rvfi reference) {
 
   // Add overwritten values from memory writes during the step
   prev_changes_t prev_changes(prev_state, this->get_state()->log_mem_pre_write);
-  previous_states.push_front(prev_changes);
-
+  if(max_previous_states > 0) {
+    previous_states.push_front(prev_changes);
+  }
   if(previous_states.size() > max_previous_states) {
     previous_states.pop_back();
   }
-  //printf("num previous states: %d, pc0: %x, mem writes0: %d\n",previous_states.size(), std::get<0>(previous_states[0]).pc, std::get<1>(previous_states[0]).size());
 
   rvfi.pc_wdata = this->get_state()->pc; // Next predicted PC
 
@@ -446,7 +446,6 @@ Processor::Processor(
   this->state.csrmap[CSR_MARCHID] =
       std::make_shared<const_csr_t>(this, CSR_MHARTID, (this->params[base + "marchid"]).a_uint64_t);
 
-
   bool fs_field_we_enable = (this->params[base + "status_fs_field_we_enable"]).a_bool;
   bool fs_field_we = (this->params[base + "status_fs_field_we"]).a_bool;
   bool vs_field_we_enable = (this->params[base + "status_vs_field_we_enable"]).a_bool;
@@ -461,9 +460,6 @@ Processor::Processor(
                                 : (sstatus_mask & ~MSTATUS_VS));
   this->state.mstatus->set_param_write_mask(sstatus_mask);
 
-
-  this->put_csr(CSR_MSTATUS, MSTATUS_MPP);
-
   bool misa_we_enable =
       (this->params[base + "misa_we_enable"]).a_bool;
   bool misa_we = (this->params[base + "misa_we"]).a_bool;
@@ -472,7 +468,8 @@ Processor::Processor(
 
   this->next_rvfi_intr = 0;
 
-  this->max_previous_states = 4; //TODO: make this a parameter
+  this->max_previous_states = (this->params[base + "num_prev_states_stored"]).a_uint64_t;
+
 }
 
 void Processor::take_trap(trap_t &t, reg_t epc) {
@@ -523,6 +520,13 @@ void Processor::default_params(string base, openhw::Params &params) {
 
   params.set_bool(base, "csr_counters_injection", false, "false",
              "Allow to set CSRs getting values from a DPI");
+
+  params.set_bool(base, "nonstd_ext", false, "false",
+             "Non-standard extension used");
+
+  params.set_uint64_t(base, "num_prev_states_stored", 0UL, "0",
+             "The number of previous states stored for reverting");
+
 }
 
 inline void Processor::set_XPR(reg_t num, reg_t value) {

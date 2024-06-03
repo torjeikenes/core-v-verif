@@ -25,7 +25,7 @@ public:
 
 protected:
   std::deque<prev_changes_t> previous_states;
-  int max_previous_states;
+  uint64_t max_previous_states;
   bool csr_counters_injection;
   bool taken_trap;
   uint32_t which_trap;
